@@ -39,10 +39,12 @@ class MainViewController: UIViewController {
     }
     private let rankImageView = UIImageView().then {
         $0.image = UIImage(named: "rank")?.withRenderingMode(.alwaysOriginal)
+        $0.isUserInteractionEnabled = true
     }
     
     private let logImageView = UIImageView().then {
         $0.image = UIImage(named: "log")?.withRenderingMode(.alwaysOriginal)
+        $0.isUserInteractionEnabled = true
     }
     private let plusImageView = UIImageView().then {
         $0.image = UIImage(named: "plus")?.withRenderingMode(.alwaysOriginal)
@@ -53,6 +55,7 @@ class MainViewController: UIViewController {
         view.backgroundColor = .backGround
         addView()
         layout()
+        setupGestures()
     }
     
     @objc private func endButtonTapped() {
@@ -79,14 +82,12 @@ class MainViewController: UIViewController {
     
     func layout() {
         mainLogoImageView.snp.makeConstraints {
-//            $0.top.equalTo(view.safeAreaLayoutGuide)
             $0.top.equalTo(47)
             $0.leading.equalToSuperview().inset(20)
             $0.width.equalTo(58)
             $0.height.equalTo(43)
         }
         mainLineImageView.snp.makeConstraints {
-//            $0.top.equalTo(view.safeAreaLayoutGuide).offset(13)
             $0.top.equalTo(60)
             $0.trailing.equalToSuperview().inset(16)
             $0.width.height.equalTo(24)
@@ -139,5 +140,23 @@ class MainViewController: UIViewController {
             $0.width.equalTo(89)
             $0.height.equalTo(88)
         }
+    }
+
+    private func setupGestures() {
+        let rankTapGesture = UITapGestureRecognizer(target: self, action: #selector(rankImageViewTapped))
+        rankImageView.addGestureRecognizer(rankTapGesture)
+        
+        let logTapGesture = UITapGestureRecognizer(target: self, action: #selector(logImageViewTapped))
+        logImageView.addGestureRecognizer(logTapGesture)
+    }
+
+    @objc private func rankImageViewTapped() {
+        let rankViewController = RankViewController()
+        navigationController?.pushViewController(rankViewController, animated: true)
+    }
+
+    @objc private func logImageViewTapped() {
+        let recordViewController = RecordViewController()
+        navigationController?.pushViewController(recordViewController, animated: true)
     }
 }
