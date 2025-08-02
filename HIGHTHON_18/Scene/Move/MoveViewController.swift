@@ -183,6 +183,8 @@
             }
         }
         
+        // MoveViewController.swift의 수정된 부분
+
         private func handleFeedbackStatusResponse(_ response: FeedbackDetailResponse) {
             let feedback = response.feedback
             
@@ -195,12 +197,43 @@
             if feedback.overallStatus == "COMPLETE" && feedback.projectStatus == "COMPLETE" {
                 print("✅ Feedback completed! Moving to RateViewController...")
                 stopStatusPolling()
-                navigateToRateViewController()
+                navigateToRateViewController(with: feedback) // 피드백 데이터 전달
             } else {
                 print("⏳ Feedback still in progress...")
                 updateProgressUI(overallStatus: feedback.overallStatus, projectStatus: feedback.projectStatus)
             }
         }
+
+        private func navigateToRateViewController(with feedbackDetail: FeedbackDetail) {
+            print("🚀 Navigating to RateViewController...")
+            
+            DispatchQueue.main.async { [weak self] in
+                guard let navigationController = self?.navigationController else {
+                    print("❌ NavigationController is nil")
+                    return
+                }
+                
+                let rateViewController = RateViewController()
+                
+                // 피드백 데이터 전달
+                print("📦 Passing feedback data to RateViewController")
+                print("🆔 Feedback ID: \(feedbackDetail.id)")
+                
+                if let overallEval = feedbackDetail.overallEvaluation {
+                    print("📊 Scores being passed:")
+                    print("   Job Fit: \(overallEval.jobFit.score)")
+                    print("   Logical Thinking: \(overallEval.logicalThinking.score)")
+                    print("   Writing Clarity: \(overallEval.writingClarity.score)")
+                    print("   Layout Readability: \(overallEval.layoutReadability.score)")
+                }
+                
+                rateViewController.updateWithFeedbackDetail(feedbackDetail)
+                
+                navigationController.pushViewController(rateViewController, animated: true)
+            }
+        }
+
+        // 기존의 navigateToRateViewController() 메서드는 이제 사용하지 않음
         
         private func updateProgressUI(overallStatus: String, projectStatus: String) {
             // UI 업데이트 (필요한 경우)
@@ -247,7 +280,6 @@
                 )
                 
                 alert.addAction(UIAlertAction(title: "재시도", style: .default) { [weak self] _ in
-                    // 재시도 시 폴링 카운트 리셋하고 다시 시작
                     self?.pollCount = 0
                     if let feedbackId = self?.feedbackId,
                        let accessToken = self?.accessToken {

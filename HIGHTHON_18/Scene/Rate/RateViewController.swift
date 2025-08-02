@@ -3,11 +3,7 @@ import SnapKit
 import Then
 
 class RateViewController: UIViewController {
-    
-    // MARK: - Properties
     var feedbackDetail: FeedbackDetail?
-    
-    // MARK: - Original UI Components
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
     }
@@ -66,61 +62,62 @@ class RateViewController: UIViewController {
     private func setupData() {
         var items: [EvaluationDisplayItem] = []
         
-        if let feedback = feedbackDetail {
-            // 네트워크 응답 데이터로 설정
-            print("🔍 Setting up data with feedback detail")
+        // 로그 기반으로 직접 파싱
+        if let feedback = feedbackDetail,
+           let overallEval = feedback.overallEvaluation {
             
-            if let jobFit = feedback.jobFit {
-                print("✅ Adding Job Fit: score=\(jobFit.score)")
-                items.append(EvaluationDisplayItem(
-                    id: 1,
-                    title: "직무 적합성",
-                    titleEng: "Job Fit",
-                    description: jobFit.review,
-                    score: jobFit.score,
-                    bgColor: .systemBlue,
-                    titleColor: .systemBlue
-                ))
-            }
+            print("🔍 Setting up data with overall evaluation")
             
-            if let logicalThinking = feedback.logicalThinking {
-                print("✅ Adding Logical Thinking: score=\(logicalThinking.score)")
-                items.append(EvaluationDisplayItem(
-                    id: 2,
-                    title: "논리적 사고",
-                    titleEng: "Logical Thinking",
-                    description: logicalThinking.review,
-                    score: logicalThinking.score,
-                    bgColor: .systemGreen,
-                    titleColor: .systemGreen
-                ))
-            }
+            // 1. 직무 적합성
+            let jobFit = overallEval.jobFit
+            print("✅ Adding Job Fit: score=\(jobFit.score)")
+            items.append(EvaluationDisplayItem(
+                id: 1,
+                title: "직무 적합성",
+                titleEng: "Job Fit",
+                description: jobFit.review,
+                score: jobFit.score,
+                bgColor: getColorForScore(jobFit.score, baseColor: .systemBlue),
+                titleColor: .systemBlue
+            ))
             
-            if let writingClarity = feedback.writingClarity {
-                print("✅ Adding Writing Clarity: score=\(writingClarity.score)")
-                items.append(EvaluationDisplayItem(
-                    id: 3,
-                    title: "작성 명료성",
-                    titleEng: "Writing Clarity",
-                    description: writingClarity.review,
-                    score: writingClarity.score,
-                    bgColor: .systemOrange,
-                    titleColor: .systemOrange
-                ))
-            }
+            // 2. 논리적 사고
+            let logicalThinking = overallEval.logicalThinking
+            print("✅ Adding Logical Thinking: score=\(logicalThinking.score)")
+            items.append(EvaluationDisplayItem(
+                id: 2,
+                title: "논리적 사고",
+                titleEng: "Logical Thinking",
+                description: logicalThinking.review,
+                score: logicalThinking.score,
+                bgColor: getColorForScore(logicalThinking.score, baseColor: .systemGreen),
+                titleColor: .systemGreen
+            ))
             
-            if let layoutReadability = feedback.layoutReadability {
-                print("✅ Adding Layout Readability: score=\(layoutReadability.score)")
-                items.append(EvaluationDisplayItem(
-                    id: 4,
-                    title: "레이아웃 가독성",
-                    titleEng: "Layout Readability",
-                    description: layoutReadability.review,
-                    score: layoutReadability.score,
-                    bgColor: .systemPurple,
-                    titleColor: .systemPurple
-                ))
-            }
+            // 3. 작성 명료성
+            let writingClarity = overallEval.writingClarity
+            print("✅ Adding Writing Clarity: score=\(writingClarity.score)")
+            items.append(EvaluationDisplayItem(
+                id: 3,
+                title: "작성 명료성",
+                titleEng: "Writing Clarity",
+                description: writingClarity.review,
+                score: writingClarity.score,
+                bgColor: getColorForScore(writingClarity.score, baseColor: .systemOrange),
+                titleColor: .systemOrange
+            ))
+
+            let layoutReadability = overallEval.layoutReadability
+            print("✅ Adding Layout Readability: score=\(layoutReadability.score)")
+            items.append(EvaluationDisplayItem(
+                id: 4,
+                title: "레이아웃 가독성",
+                titleEng: "Layout Readability",
+                description: layoutReadability.review,
+                score: layoutReadability.score,
+                bgColor: getColorForScore(layoutReadability.score, baseColor: .systemPurple),
+                titleColor: .systemPurple
+            ))
             
             print("📊 Total items from API: \(items.count)")
             
@@ -171,6 +168,21 @@ class RateViewController: UIViewController {
         print("🎯 Final evaluation items count: \(evaluationItems.count)")
     }
     
+    // MARK: - Helper Methods
+    private func getColorForScore(_ score: Int, baseColor: UIColor) -> UIColor {
+        // 점수에 따라 색상 강도 조절
+        switch score {
+        case 80...100:
+            return baseColor
+        case 60...79:
+            return baseColor.withAlphaComponent(0.8)
+        case 40...59:
+            return baseColor.withAlphaComponent(0.6)
+        default:
+            return baseColor.withAlphaComponent(0.4)
+        }
+    }
+    
     // MARK: - Public Methods (개선된 버전)
     func updateWithFeedbackDetail(_ detail: FeedbackDetail) {
         print("🔄 Updating RateViewController with feedback detail")
@@ -183,10 +195,10 @@ class RateViewController: UIViewController {
         // 평가 데이터 확인
         if let overallEval = detail.overallEvaluation {
             print("✅ Overall evaluation found")
-            print("📊 Job Fit: \(overallEval.jobFit.score) - \(overallEval.jobFit.review.prefix(50))...")
-            print("📊 Logical Thinking: \(overallEval.logicalThinking.score) - \(overallEval.logicalThinking.review.prefix(50))...")
-            print("📊 Writing Clarity: \(overallEval.writingClarity.score) - \(overallEval.writingClarity.review.prefix(50))...")
-            print("📊 Layout Readability: \(overallEval.layoutReadability.score) - \(overallEval.layoutReadability.review.prefix(50))...")
+            print("📊 Job Fit: \(overallEval.jobFit.score) - \(String(overallEval.jobFit.review.prefix(50)))...")
+            print("📊 Logical Thinking: \(overallEval.logicalThinking.score) - \(String(overallEval.logicalThinking.review.prefix(50)))...")
+            print("📊 Writing Clarity: \(overallEval.writingClarity.score) - \(String(overallEval.writingClarity.review.prefix(50)))...")
+            print("📊 Layout Readability: \(overallEval.layoutReadability.score) - \(String(overallEval.layoutReadability.review.prefix(50)))...")
         } else {
             print("⚠️ No overall evaluation found in feedback detail")
         }
