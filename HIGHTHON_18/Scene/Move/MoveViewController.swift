@@ -6,10 +6,8 @@
         private let daeImageView = UIImageView().then {
             $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
         }
-        private let aiFeedLabel = UILabel().then {
-            $0.text = "AI 피드백 진행중"
-            $0.font = UIFont.systemFont(ofSize: 30, weight: .semibold)
-            $0.textColor = .black
+        private let aiFeedLabel = UIImageView().then {
+            $0.image = UIImage(named: "qwer3")?.withRenderingMode(.alwaysOriginal)
         }
         private let feedDetailLabel = UILabel().then {
             $0.text = "피드백은 최대 2분까지 소요될 수 있습니다."
