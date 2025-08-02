@@ -78,9 +78,12 @@ class RateViewController: UIViewController {
         $0.font = UIFont.systemFont(ofSize: 24, weight: .semibold)
         $0.textColor = .customBlack
     }
+    
     private let improveDetailLabel = UILabel().then {
         $0.text = "개선할 점 test"
-        $0.textColor = .black
+        $0.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        $0.numberOfLines = 0
+        $0.textColor = .customBlack
     }
 
     private var evaluationItems: [EvaluationDisplayItem] = []
@@ -114,6 +117,7 @@ class RateViewController: UIViewController {
            let overallEval = feedback.overallEvaluation {
             updateSummaryLabel(overallEval.summary)
             updateStrengthsLabel(overallEval.strengths)
+            updateImprovementsLabel(overallEval.improvements) // 개선사항 업데이트 추가
 
             items.append(EvaluationDisplayItem(id: 1, title: "직무 적합성", titleEng: "Job Fit", description: overallEval.jobFit.review, score: overallEval.jobFit.score, bgColor: getColorForScore(overallEval.jobFit.score, baseColor: .systemBlue), titleColor: .systemBlue))
 
@@ -152,6 +156,17 @@ class RateViewController: UIViewController {
         }
     }
 
+    // 개선사항 업데이트 메서드 추가
+    private func updateImprovementsLabel(_ improvements: [ImprovementItem]?) {
+        DispatchQueue.main.async { [weak self] in
+            if let improvements = improvements, !improvements.isEmpty {
+                self?.improveDetailLabel.text = self?.formatImprovements(improvements)
+            } else {
+                self?.improveDetailLabel.text = "개선할 점이 없습니다."
+            }
+        }
+    }
+
     private func formatStrengths(_ strengths: [StrengthItem]) -> String {
         var result = ""
         for (index, item) in strengths.enumerated() {
@@ -162,6 +177,23 @@ class RateViewController: UIViewController {
                 result += "  - \(shortened)\n"
             }
             if index < strengths.count - 1 {
+                result += "\n"
+            }
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // 개선사항 포맷팅 메서드 추가
+    private func formatImprovements(_ improvements: [ImprovementItem]) -> String {
+        var result = ""
+        for (index, item) in improvements.enumerated() {
+            result += "• \(item.title)\n"
+            for i in 0..<min(item.content.count, 3) { // 최대 3개 항목까지 표시
+                let content = item.content[i]
+                let shortened = content.count > 80 ? String(content.prefix(80)) + "..." : content
+                result += "  - \(shortened)\n"
+            }
+            if index < improvements.count - 1 {
                 result += "\n"
             }
         }
@@ -205,7 +237,8 @@ class RateViewController: UIViewController {
             collectionView,
             strongLabel,
             strongDetailLabel,
-            improveLabel
+            improveLabel,
+            improveDetailLabel
         ].forEach { contentView.addSubview($0) }
     }
 
@@ -256,15 +289,17 @@ class RateViewController: UIViewController {
         strongDetailLabel.snp.makeConstraints {
             $0.top.equalTo(strongLabel.snp.bottom).offset(18)
             $0.leading.trailing.equalToSuperview().inset(26)
-            $0.bottom.equalToSuperview().inset(50)
         }
+        
         improveLabel.snp.makeConstraints {
             $0.top.equalTo(strongDetailLabel.snp.bottom).offset(36)
             $0.leading.equalToSuperview().inset(16)
         }
+        
         improveDetailLabel.snp.makeConstraints {
-            $0.top.equalTo(improveLabel.snp.bottom).offset(28)
-            $0.leading.equalToSuperview().inset(26)
+            $0.top.equalTo(improveLabel.snp.bottom).offset(18)
+            $0.leading.trailing.equalToSuperview().inset(26)
+            $0.bottom.equalToSuperview().inset(50)
         }
     }
 }
