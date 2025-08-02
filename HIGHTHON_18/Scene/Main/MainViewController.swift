@@ -14,10 +14,8 @@ class MainViewController: UIViewController {
     private let mainLineImageView = UIImageView().then {
         $0.image = UIImage(named: "line")?.withRenderingMode(.alwaysOriginal)
     }
-    private let upLoadLabel = UILabel().then {
-        $0.text = "PDF를 업로드 해주세요"
-        $0.font = UIFont.systemFont(ofSize: 30, weight: .semibold)
-        $0.textColor = .black
+    private let upLoadLabel = UIImageView().then {
+        $0.image = UIImage(named: "qwer3")?.withRenderingMode(.alwaysOriginal)
     }
     private let loadDetailLabel = UILabel().then {
         $0.text = "50MB 이하, 50페이지 이내로 올려주세요."
@@ -438,8 +436,6 @@ class MainViewController: UIViewController {
     private func updateUIForSelectedFile(fileName: String, fileSize: Double) {
         DispatchQueue.main.async { [weak self] in
             let displayName = fileName.count > 20 ? String(fileName.prefix(17)) + "..." : fileName
-            self?.upLoadLabel.text = "선택됨: \(displayName)"
-            self?.upLoadLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
             self?.loadDetailLabel.text = "크기: \(String(format: "%.2f", fileSize))MB | 업로드 준비 완료"
             self?.loadDetailLabel.textColor = UIColor.systemGreen
             
