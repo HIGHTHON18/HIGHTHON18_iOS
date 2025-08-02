@@ -75,13 +75,15 @@ class MainViewController: UIViewController {
     
     func layout() {
         mainLogoImageView.snp.makeConstraints {
-            $0.top.equalTo(view.safeAreaLayoutGuide)
+//            $0.top.equalTo(view.safeAreaLayoutGuide)
+            $0.top.equalTo(47)
             $0.leading.equalToSuperview().inset(20)
             $0.width.equalTo(58)
             $0.height.equalTo(43)
         }
         mainLineImageView.snp.makeConstraints {
-            $0.top.equalTo(view.safeAreaLayoutGuide).offset(13)
+//            $0.top.equalTo(view.safeAreaLayoutGuide).offset(13)
+            $0.top.equalTo(60)
             $0.trailing.equalToSuperview().inset(16)
             $0.width.height.equalTo(24)
         }
