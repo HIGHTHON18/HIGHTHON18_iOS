@@ -5,6 +5,7 @@ import SnapKit
 class MainViewController: UIViewController {
     private var accessToken: String?
     private var refreshToken: String?
+    private var selectedFileURL: URL?  // 선택된 파일 URL 저장
     
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
@@ -27,6 +28,7 @@ class MainViewController: UIViewController {
     }
     private let selectImageView = UIImageView().then {
         $0.image = UIImage(named: "select")?.withRenderingMode(.alwaysOriginal)
+        $0.isUserInteractionEnabled = true  // 탭 가능하도록 설정
     }
     private let endButton = UIButton().then {
         $0.setTitle("완료", for: .normal)
@@ -107,8 +109,7 @@ class MainViewController: UIViewController {
         }
         mainFileImageView.snp.makeConstraints {
             $0.top.equalTo(278)
-            $0.leading.equalToSuperview().inset(93)
-            $0.trailing.equalToSuperview().inset(88)
+            $0.centerX.equalToSuperview()
             $0.width.equalTo(247)
             $0.height.equalTo(202)
         }
@@ -152,6 +153,9 @@ class MainViewController: UIViewController {
         
         let logTapGesture = UITapGestureRecognizer(target: self, action: #selector(logImageViewTapped))
         logImageView.addGestureRecognizer(logTapGesture)
+        
+        let selectTapGesture = UITapGestureRecognizer(target: self, action: #selector(selectImageViewTapped))
+        selectImageView.addGestureRecognizer(selectTapGesture)
     }
     
     @objc private func rankImageViewTapped() {
@@ -164,6 +168,11 @@ class MainViewController: UIViewController {
         navigationController?.pushViewController(recordViewController, animated: true)
     }
     
+    @objc private func selectImageViewTapped() {
+        presentDocumentPicker()
+    }
+    
+    // MARK: - API Methods
     private func getTokenAPI() {
         NetworkManager.shared.getToken { [weak self] result in
             DispatchQueue.main.async {
@@ -177,8 +186,72 @@ class MainViewController: UIViewController {
                     
                 case .failure(let error):
                     print("Token API Error: \(error.localizedDescription)")
+                    // 필요시 에러 처리 로직 추가
                 }
             }
         }
+    }
+    
+    // MARK: - File Selection Methods
+    private func presentDocumentPicker() {
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf], asCopy: true)
+        documentPicker.delegate = self
+        documentPicker.allowsMultipleSelection = false
+        documentPicker.modalPresentationStyle = .formSheet
+        present(documentPicker, animated: true)
+    }
+    
+    private func handleSelectedFile(_ url: URL) {
+        selectedFileURL = url
+        
+        // 파일 정보 확인
+        do {
+            let fileAttributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            if let fileSize = fileAttributes[.size] as? NSNumber {
+                let fileSizeInMB = fileSize.doubleValue / (1024 * 1024)
+                
+                print("Selected file: \(url.lastPathComponent)")
+                print("File size: \(String(format: "%.2f", fileSizeInMB)) MB")
+                
+                // 50MB 제한 확인
+                if fileSizeInMB > 50 {
+                    showAlert(title: "파일 크기 초과", message: "50MB 이하의 파일만 업로드 가능합니다.")
+                    selectedFileURL = nil
+                    return
+                }
+                
+                // UI 업데이트 (선택된 파일명 표시 등)
+                updateUIForSelectedFile(fileName: url.lastPathComponent)
+            }
+        } catch {
+            print("Error reading file attributes: \(error)")
+            showAlert(title: "오류", message: "파일 정보를 읽을 수 없습니다.")
+        }
+    }
+    
+    private func updateUIForSelectedFile(fileName: String) {
+        // 파일이 선택되었음을 사용자에게 알리는 UI 업데이트
+        // 예: 라벨 텍스트 변경, 버튼 활성화 등
+        DispatchQueue.main.async { [weak self] in
+            // 여기서 UI 업데이트 로직 추가
+            print("파일이 선택되었습니다: \(fileName)")
+            // 예시: self?.upLoadLabel.text = "선택됨: \(fileName)"
+        }
+    }
+    
+    private func showAlert(title: String, message: String) {
+        DispatchQueue.main.async { [weak self] in
+            let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            self?.present(alert, animated: true)
+        }
+    }
+}
+
+// MARK: - UIDocumentPickerDelegate
+extension MainViewController: UIDocumentPickerDelegate {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let selectedURL = urls.first else { return }
+        handleSelectedFile(selectedURL)
     }
 }
