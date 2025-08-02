@@ -42,26 +42,21 @@ class RateViewController: UIViewController {
 
     private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
-        let screenWidth = UIScreen.main.bounds.width
-        let horizontalPadding: CGFloat = 32 // 좌우 여백
-        let interItemSpacing: CGFloat = 12 // 셀 간격
-        let cellWidth = (screenWidth - horizontalPadding - interItemSpacing) / 2
-        let cellHeight: CGFloat = 140
-        
-        layout.itemSize = CGSize(width: cellWidth, height: cellHeight)
-        layout.minimumInteritemSpacing = interItemSpacing
-        layout.minimumLineSpacing = 16
-        layout.sectionInset = UIEdgeInsets(top: 0, left: 16, bottom: 20, right: 16)
+        layout.scrollDirection = .horizontal
+        layout.itemSize = CGSize(width: 173, height: 205)
+        layout.minimumInteritemSpacing = 12
+        layout.sectionInset = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.backgroundColor = .clear
         cv.delegate = self
         cv.dataSource = self
         cv.register(EvaluationCell.self, forCellWithReuseIdentifier: EvaluationCell.identifier)
-        cv.showsVerticalScrollIndicator = false
-        cv.isScrollEnabled = true // 4개 항목만 있으므로 스크롤 비활성화
+        cv.showsHorizontalScrollIndicator = false
         return cv
     }()
+
+
     
     private let strongLabel = UILabel().then {
         $0.text = "강점 분석"
@@ -150,10 +145,7 @@ class RateViewController: UIViewController {
             
         } else {
             print("⚠️ No feedback detail available, using sample data")
-            // 기본 요약 텍스트 설정
             updateSummaryLabel("데이터 기반의 UX디자인이 돋보여요")
-            
-            // 기본 샘플 데이터
             items = [
                 EvaluationDisplayItem(
                     id: 1,
@@ -197,8 +189,7 @@ class RateViewController: UIViewController {
         evaluationItems = items
         print("🎯 Final evaluation items count: \(evaluationItems.count)")
     }
-    
-    // MARK: - Helper Methods
+
     private func updateSummaryLabel(_ summaryText: String) {
         DispatchQueue.main.async { [weak self] in
             self?.overallEvaluationDetailLabel.text = summaryText
@@ -207,7 +198,6 @@ class RateViewController: UIViewController {
     }
     
     private func getColorForScore(_ score: Int, baseColor: UIColor) -> UIColor {
-        // 점수에 따라 색상 강도 조절
         switch score {
         case 80...100:
             return baseColor
@@ -306,8 +296,9 @@ class RateViewController: UIViewController {
         collectionView.snp.makeConstraints {
             $0.top.equalTo(scoreLabel.snp.bottom).offset(20)
             $0.leading.trailing.equalToSuperview()
-            $0.height.equalTo(296)
+            $0.height.equalTo(205)
         }
+
         strongLabel.snp.makeConstraints {
             $0.top.equalTo(collectionView.snp.bottom).offset(36)
             $0.leading.equalToSuperview().inset(16)

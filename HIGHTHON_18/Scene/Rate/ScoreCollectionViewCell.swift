@@ -30,7 +30,8 @@ class EvaluationCell: UICollectionViewCell {
     private let titleLabel = UILabel().then {
         $0.font = UIFont.systemFont(ofSize: 16, weight: .bold)
         $0.textColor = .black
-        $0.numberOfLines = 1
+        $0.numberOfLines = 2
+        $0.lineBreakMode = .byWordWrapping
         $0.textAlignment = .left
     }
     
@@ -44,8 +45,8 @@ class EvaluationCell: UICollectionViewCell {
     private let descriptionLabel = UILabel().then {
         $0.font = UIFont.systemFont(ofSize: 12, weight: .regular)
         $0.textColor = .darkGray
-        $0.numberOfLines = 4
-        $0.lineBreakMode = .byTruncatingTail
+        $0.numberOfLines = 0
+        $0.lineBreakMode = .byWordWrapping
     }
     
     private let scoreBadgeView = UIView().then {
@@ -129,8 +130,7 @@ class EvaluationCell: UICollectionViewCell {
             make.height.equalTo(8)
         }
     }
-    
-    // MARK: - Configuration
+
     func configure(with item: EvaluationDisplayItem) {
         titleLabel.text = item.title
         titleEngLabel.text = item.titleEng
