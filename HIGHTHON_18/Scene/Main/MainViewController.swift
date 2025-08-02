@@ -296,7 +296,7 @@ class MainViewController: UIViewController {
         }
     }
     
-    // MARK: - Start Feedback Method (새로 추가)
+    // MARK: - Start Feedback Method (수정된 부분)
     private func startFeedbackInBackground(fileId: String, accessToken: String, moveViewController: MoveViewController) {
         print("🔄 Starting feedback process...")
         
@@ -311,14 +311,10 @@ class MainViewController: UIViewController {
                 case .success(let feedbackResponse):
                     print("✅ Feedback started successfully")
                     print("🎯 Feedback ID: \(feedbackResponse.feedbackId)")
-                    
-                    // 피드백 시작 성공 후 RateViewController로 이동
-                    if let navigationController = moveVC.navigationController {
-                        let rateViewController = RateViewController()
-                        // RateViewController에 필요한 데이터 전달 (필요한 경우)
-                        // rateViewController.feedbackId = feedbackResponse.feedbackId
-                        navigationController.pushViewController(rateViewController, animated: true)
-                    }
+                    moveVC.startFeedbackStatusPolling(
+                        feedbackId: feedbackResponse.feedbackId,
+                        accessToken: accessToken
+                    )
                     
                 case .failure(let error):
                     print("❌ Feedback Start Error: \(error.localizedDescription)")

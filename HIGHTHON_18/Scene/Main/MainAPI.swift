@@ -11,6 +11,7 @@ enum APIEndpoint {
     case getToken(deviceToken: String)
     case uploadPortfolio
     case startFeedback(fileId: String)
+    case getFeedbackDetail(feedbackId: String)
     
     var path: String {
         switch self {
@@ -20,6 +21,8 @@ enum APIEndpoint {
             return "/api/v1/files/portfolio"
         case .startFeedback:
             return "/api/v1/feedback/start"
+        case .getFeedbackDetail:
+            return "/api/v1/feedback"
         }
     }
     
@@ -34,6 +37,10 @@ enum APIEndpoint {
         case .startFeedback(let fileId):
             var components = URLComponents(string: APIConfig.baseURL + path)
             components?.queryItems = [URLQueryItem(name: "fileId", value: fileId)]
+            return components?.url
+        case .getFeedbackDetail(let feedbackId):
+            var components = URLComponents(string: APIConfig.baseURL + path)
+            components?.queryItems = [URLQueryItem(name: "feedbackId", value: feedbackId)]
             return components?.url
         }
     }
@@ -247,7 +254,7 @@ class NetworkManager {
         }.resume()
     }
     
-    // MARK: - Start Feedback API (새로 추가)
+    // MARK: - Start Feedback API
     func startFeedback(fileId: String, accessToken: String, completion: @escaping (Result<FeedbackStartResponse, NetworkError>) -> Void) {
         guard let url = APIEndpoint.startFeedback(fileId: fileId).url else {
             print("❌ Invalid URL for feedback start API")
@@ -331,6 +338,90 @@ class NetworkManager {
         }.resume()
     }
     
+    // MARK: - Get Feedback Detail API (새로 추가)
+    func getFeedbackDetail(feedbackId: String, accessToken: String, completion: @escaping (Result<FeedbackDetailResponse, NetworkError>) -> Void) {
+        guard let url = APIEndpoint.getFeedbackDetail(feedbackId: feedbackId).url else {
+            print("❌ Invalid URL for feedback detail API")
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        print("🌐 Feedback Detail API Request URL: \(url.absoluteString)")
+        print("🆔 Feedback ID: \(feedbackId)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 15.0
+        
+        print("📤 Sending feedback detail API request...")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📡 Feedback Detail HTTP Status Code: \(httpResponse.statusCode)")
+            }
+            
+            if let error = error {
+                print("❌ Feedback Detail Network Error: \(error.localizedDescription)")
+                completion(.failure(.networkError(error)))
+                return
+            }
+            
+            guard let data = data else {
+                print("❌ No feedback detail response data received")
+                completion(.failure(.noData))
+                return
+            }
+            
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📦 Feedback Detail Response Data: \(jsonString)")
+            }
+            
+            if data.isEmpty {
+                print("❌ Received empty feedback detail data")
+                completion(.failure(.emptyData))
+                return
+            }
+            
+            do {
+                let apiResponse = try JSONDecoder().decode(FeedbackDetailAPIResponse.self, from: data)
+                print("✅ Successfully decoded feedback detail response")
+                print("📊 Feedback Detail Status: \(apiResponse.status), Code: \(apiResponse.code)")
+                print("💬 Feedback Detail Message: \(apiResponse.message)")
+                
+                guard apiResponse.status == "OK" else {
+                    print("❌ Feedback Detail API Error - Status: \(apiResponse.status), Message: \(apiResponse.message)")
+                    completion(.failure(.apiError(apiResponse.code, apiResponse.message)))
+                    return
+                }
+                
+                guard let feedbackResult = apiResponse.result else {
+                    print("❌ No feedback detail result data in API response")
+                    completion(.failure(.noResultData))
+                    return
+                }
+                
+                let feedbackResponse = FeedbackDetailResponse(
+                    feedback: feedbackResult.feedback
+                )
+                
+                print("🎯 Overall Status: \(feedbackResult.feedback.overallStatus)")
+                print("🎯 Project Status: \(feedbackResult.feedback.projectStatus)")
+                
+                completion(.success(feedbackResponse))
+                
+            } catch {
+                print("❌ Feedback Detail Decoding Error: \(error)")
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("🔍 Raw JSON for debugging: \(jsonString)")
+                }
+                completion(.failure(.decodingError(error)))
+            }
+        }.resume()
+    }
+    
     private func getDeviceToken() -> String? {
         return UIDevice.current.identifierForVendor?.uuidString
     }
@@ -376,7 +467,7 @@ struct PortfolioUploadResponse: Codable {
     let url: String
 }
 
-// 피드백 시작 API 응답 구조 (새로 추가)
+// 피드백 시작 API 응답 구조
 struct FeedbackStartAPIResponse: Codable {
     let status: String
     let code: String
@@ -390,6 +481,34 @@ struct FeedbackStartResult: Codable {
 
 struct FeedbackStartResponse: Codable {
     let feedbackId: String
+}
+
+// 피드백 상세 조회 API 응답 구조 (새로 추가)
+struct FeedbackDetailAPIResponse: Codable {
+    let status: String
+    let code: String
+    let message: String
+    let result: FeedbackDetailResult?
+}
+
+struct FeedbackDetailResult: Codable {
+    let feedback: FeedbackDetail
+}
+
+struct FeedbackDetail: Codable {
+    let createdAt: String
+    let updatedAt: String
+    let deletedAt: String?
+    let id: String
+    let userId: String
+    let fileId: String
+    let title: String
+    let overallStatus: String
+    let projectStatus: String
+}
+
+struct FeedbackDetailResponse: Codable {
+    let feedback: FeedbackDetail
 }
 
 // MARK: - Network Error

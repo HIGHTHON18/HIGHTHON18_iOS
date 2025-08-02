@@ -35,6 +35,13 @@ class MoveViewController: UIViewController {
         $0.image = UIImage(named: "log")?.withRenderingMode(.alwaysOriginal)
     }
     
+    // MARK: - Feedback Status Polling Properties
+    private var feedbackId: String?
+    private var accessToken: String?
+    private var statusCheckTimer: Timer?
+    private var pollCount = 0
+    private let maxPollCount = 40 // 3초 * 40 = 최대 2분
+    
     override func viewDidLoad() {
        super.viewDidLoad()
        view.backgroundColor = .backGround
@@ -42,6 +49,11 @@ class MoveViewController: UIViewController {
        addView()
        layout()
        setupGestures()
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        stopStatusPolling()
     }
     
     func addView() {
@@ -109,7 +121,146 @@ class MoveViewController: UIViewController {
     }
 
     @objc private func plusImageViewTapped() {
+        stopStatusPolling()
         navigationController?.popViewController(animated: true)
+    }
+
+    // MARK: - Feedback Status Polling Methods
+    
+    /// 피드백 상태 폴링을 시작하는 메서드 (MainViewController에서 호출)
+    func startFeedbackStatusPolling(feedbackId: String, accessToken: String) {
+        print("🔄 Starting feedback status polling...")
+        print("🆔 Feedback ID: \(feedbackId)")
+        
+        self.feedbackId = feedbackId
+        self.accessToken = accessToken
+        self.pollCount = 0
+        
+        // 즉시 첫 번째 상태 확인
+        checkFeedbackStatus()
+        
+        // 3초마다 상태 확인 타이머 시작
+        statusCheckTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            self?.checkFeedbackStatus()
+        }
+    }
+    
+    private func checkFeedbackStatus() {
+        guard let feedbackId = feedbackId,
+              let accessToken = accessToken else {
+            print("❌ Missing feedbackId or accessToken")
+            stopStatusPolling()
+            return
+        }
+        
+        pollCount += 1
+        print("🔍 Checking feedback status... Poll count: \(pollCount)/\(maxPollCount)")
+        
+        // 최대 폴링 횟수 초과 시 타임아웃 처리
+        if pollCount > maxPollCount {
+            print("⏰ Feedback status polling timeout")
+            stopStatusPolling()
+            handleFeedbackTimeout()
+            return
+        }
+        
+        NetworkManager.shared.getFeedbackDetail(feedbackId: feedbackId, accessToken: accessToken) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let feedbackDetail):
+                    self?.handleFeedbackStatusResponse(feedbackDetail)
+                    
+                case .failure(let error):
+                    print("❌ Feedback Status Check Error: \(error.localizedDescription)")
+                    // 에러가 발생해도 계속 폴링을 시도함 (일시적 네트워크 오류 대응)
+                    if let networkError = error as? NetworkError,
+                       case .apiError(let code, let message) = networkError {
+                        print("📋 Status Check Error Code: \(code)")
+                        print("💬 Status Check Error Message: \(message)")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleFeedbackStatusResponse(_ response: FeedbackDetailResponse) {
+        let feedback = response.feedback
+        
+        print("📊 Feedback Status Update:")
+        print("   Overall Status: \(feedback.overallStatus)")
+        print("   Project Status: \(feedback.projectStatus)")
+        print("   Title: \(feedback.title)")
+        
+        // 두 상태 모두 COMPLETE인지 확인
+        if feedback.overallStatus == "COMPLETE" && feedback.projectStatus == "COMPLETE" {
+            print("✅ Feedback completed! Moving to RateViewController...")
+            stopStatusPolling()
+            navigateToRateViewController()
+        } else {
+            print("⏳ Feedback still in progress...")
+            updateProgressUI(overallStatus: feedback.overallStatus, projectStatus: feedback.projectStatus)
+        }
+    }
+    
+    private func updateProgressUI(overallStatus: String, projectStatus: String) {
+        // UI 업데이트 (필요한 경우)
+        DispatchQueue.main.async { [weak self] in
+            // 상태에 따른 UI 업데이트 로직 추가 가능
+            // 예: 진행 상태 표시, 라벨 텍스트 변경 등
+            if overallStatus != "COMPLETE" || projectStatus != "COMPLETE" {
+                self?.feedDetailLabel.text = "피드백 분석 중... (\(self?.pollCount ?? 0)/\(self?.maxPollCount ?? 40))"
+            }
+        }
+    }
+    
+    private func stopStatusPolling() {
+        print("🛑 Stopping feedback status polling...")
+        statusCheckTimer?.invalidate()
+        statusCheckTimer = nil
+    }
+    
+    private func navigateToRateViewController() {
+        print("🚀 Navigating to RateViewController...")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let navigationController = self?.navigationController else {
+                print("❌ NavigationController is nil")
+                return
+            }
+            
+            let rateViewController = RateViewController()
+            // 필요한 경우 RateViewController에 데이터 전달
+            // rateViewController.feedbackId = self?.feedbackId
+            
+            navigationController.pushViewController(rateViewController, animated: true)
+        }
+    }
+    
+    private func handleFeedbackTimeout() {
+        print("⏰ Feedback processing timeout")
+        
+        DispatchQueue.main.async { [weak self] in
+            let alert = UIAlertController(
+                title: "피드백 처리 지연",
+                message: "피드백 처리가 예상보다 오래 걸리고 있습니다.\n잠시 후 다시 시도해주세요.",
+                preferredStyle: .alert
+            )
+            
+            alert.addAction(UIAlertAction(title: "재시도", style: .default) { [weak self] _ in
+                // 재시도 시 폴링 카운트 리셋하고 다시 시작
+                self?.pollCount = 0
+                if let feedbackId = self?.feedbackId,
+                   let accessToken = self?.accessToken {
+                    self?.startFeedbackStatusPolling(feedbackId: feedbackId, accessToken: accessToken)
+                }
+            })
+            
+            alert.addAction(UIAlertAction(title: "돌아가기", style: .cancel) { [weak self] _ in
+                self?.navigationController?.popViewController(animated: true)
+            })
+            
+            self?.present(alert, animated: true)
+        }
     }
 
     // MARK: - Error Alert Methods
@@ -131,7 +282,7 @@ class MoveViewController: UIViewController {
         present(alert, animated: true)
     }
     
-    // MARK: - Feedback Start Error Alert (새로 추가)
+    // MARK: - Feedback Start Error Alert
     func showFeedbackStartErrorAlert(message: String) {
         let alert = UIAlertController(
             title: "피드백 시작 실패",
