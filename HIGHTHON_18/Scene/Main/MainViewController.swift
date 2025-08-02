@@ -1,6 +1,7 @@
 import UIKit
 import Then
 import SnapKit
+import UniformTypeIdentifiers
 
 class MainViewController: UIViewController {
     private var accessToken: String?
@@ -74,7 +75,6 @@ class MainViewController: UIViewController {
         }
         
         guard let accessToken = accessToken else {
-            // 토큰이 없을 때 다시 시도
             showAlert(title: "인증 중...", message: "토큰을 다시 가져오는 중입니다.") { [weak self] in
                 self?.getTokenAPI()
             }
@@ -84,7 +84,6 @@ class MainViewController: UIViewController {
         uploadPortfolioFile(fileURL: selectedFileURL, accessToken: accessToken)
     }
     
-    // 레이아웃 및 기타 메서드들은 동일...
     func addView() {
         [
             mainLogoImageView,
@@ -192,10 +191,10 @@ class MainViewController: UIViewController {
         presentDocumentPicker()
     }
     
-    // MARK: - API Methods (수정된 부분)
+    // MARK: - API Methods
     private func getTokenAPI() {
         print("🔄 Attempting to get token...")
-        showLoading(true) // 토큰 가져오는 동안 로딩 표시
+        showLoading(true)
         
         NetworkManager.shared.getToken { [weak self] result in
             DispatchQueue.main.async {
@@ -205,7 +204,7 @@ class MainViewController: UIViewController {
                 case .success(let tokenResponse):
                     self?.accessToken = tokenResponse.accessToken
                     print("✅ Token saved successfully: \(tokenResponse.accessToken.prefix(10))...")
-                    self?.updateEndButtonState() // 토큰 받은 후 버튼 상태 업데이트
+                    self?.updateEndButtonState()
                     
                 case .failure(let error):
                     print("❌ Token API Error: \(error.localizedDescription)")
@@ -214,7 +213,6 @@ class MainViewController: UIViewController {
                         print("💬 Error Message: \(message)")
                     }
                     
-                    // 네트워크 연결 문제일 수 있으니 재시도 옵션 제공
                     self?.showRetryAlert(title: "토큰 오류",
                                         message: "인증 토큰을 가져올 수 없습니다.\n네트워크 연결을 확인해주세요.") {
                         self?.getTokenAPI()
@@ -273,72 +271,125 @@ class MainViewController: UIViewController {
             endButton.alpha = 0.6
         } else {
             loadingIndicator.stopAnimating()
-            updateEndButtonState() // 로딩 종료 후 버튼 상태 재평가
-        }
-    }
-    
-    // MARK: - File Selection Methods (수정된 부분)
-    private func presentDocumentPicker() {
-        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf], asCopy: true)
-        documentPicker.delegate = self
-        documentPicker.allowsMultipleSelection = false
-        documentPicker.modalPresentationStyle = .formSheet
-        present(documentPicker, animated: true)
-    }
-    
-    private func handleSelectedFile(_ url: URL) {
-        // 파일 접근 권한 확보
-        guard url.startAccessingSecurityScopedResource() else {
-            showAlert(title: "파일 접근 오류", message: "선택한 파일에 접근할 수 없습니다.")
-            return
-        }
-        
-        defer {
-            url.stopAccessingSecurityScopedResource()
-        }
-        
-        selectedFileURL = url
-        
-        do {
-            let fileAttributes = try FileManager.default.attributesOfItem(atPath: url.path)
-            if let fileSize = fileAttributes[.size] as? NSNumber {
-                let fileSizeInMB = fileSize.doubleValue / (1024 * 1024)
-                
-                // 파일명을 안전하게 디코딩
-                let fileName = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
-                print("Selected file: \(fileName)")
-                print("File size: \(String(format: "%.2f", fileSizeInMB)) MB")
-                
-                if fileSizeInMB > 50 {
-                    showAlert(title: "파일 크기 초과", message: "50MB 이하의 파일만 업로드 가능합니다.")
-                    selectedFileURL = nil
-                    updateEndButtonState()
-                    return
-                }
-                
-                updateUIForSelectedFile(fileName: fileName)
-                updateEndButtonState()
-            }
-        } catch {
-            print("Error reading file attributes: \(error)")
-            showAlert(title: "오류", message: "파일 정보를 읽을 수 없습니다.")
-            selectedFileURL = nil
             updateEndButtonState()
         }
     }
     
-    private func updateUIForSelectedFile(fileName: String) {
-        DispatchQueue.main.async { [weak self] in
-            print("파일이 선택되었습니다: \(fileName)")
-            // 파일명이 너무 길면 축약
-            let displayName = fileName.count > 20 ? String(fileName.prefix(17)) + "..." : fileName
-            self?.upLoadLabel.text = "선택됨: \(displayName)"
-            self?.upLoadLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-            self?.loadDetailLabel.text = "업로드할 준비가 완료되었습니다."
+    // MARK: - File Selection Methods (완전히 수정된 부분)
+    private func presentDocumentPicker() {
+        // UTType.pdf 사용하여 PDF 파일만 선택하도록 설정
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.pdf])
+        documentPicker.delegate = self
+        documentPicker.allowsMultipleSelection = false
+        documentPicker.shouldShowFileExtensions = true
+        documentPicker.modalPresentationStyle = .formSheet
+        present(documentPicker, animated: true)
+    }
+    
+    // 앱의 Documents 디렉토리 경로 가져오기
+    private func getDocumentsDirectory() -> URL {
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+    
+    // 파일을 앱 내부로 복사하는 메서드
+    private func copyFileToDocuments(from sourceURL: URL) -> URL? {
+        let documentsDirectory = getDocumentsDirectory()
+        let fileName = sourceURL.lastPathComponent
+        let destinationURL = documentsDirectory.appendingPathComponent(fileName)
+        
+        do {
+            // 기존 파일이 있다면 삭제
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+                print("🗑️ Existing file removed")
+            }
+            
+            // 파일 복사
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            print("📁 File copied to: \(destinationURL.path)")
+            return destinationURL
+            
+        } catch {
+            print("❌ File copy error: \(error.localizedDescription)")
+            return nil
         }
     }
     
-    // 수정된 버튼 상태 업데이트 로직
+    // 파일 크기 검증
+    private func validateFileSize(at url: URL) -> (isValid: Bool, sizeInMB: Double) {
+        do {
+            let fileAttributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            if let fileSize = fileAttributes[.size] as? NSNumber {
+                let fileSizeInMB = fileSize.doubleValue / (1024 * 1024)
+                return (fileSizeInMB <= 50, fileSizeInMB)
+            }
+        } catch {
+            print("❌ Error reading file size: \(error.localizedDescription)")
+        }
+        return (false, 0)
+    }
+    
+    // 메인 파일 처리 메서드
+    private func handleSelectedFile(_ url: URL) {
+        print("🔍 Processing selected file: \(url.lastPathComponent)")
+        
+        // 보안 스코프 접근 시작
+        let hasAccess = url.startAccessingSecurityScopedResource()
+        print("🔐 Security scoped access: \(hasAccess)")
+        
+        defer {
+            if hasAccess {
+                url.stopAccessingSecurityScopedResource()
+                print("🔓 Security scoped access released")
+            }
+        }
+        
+        // 파일 존재 여부 확인
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("❌ File does not exist at path: \(url.path)")
+            showAlert(title: "파일 오류", message: "선택한 파일을 찾을 수 없습니다.")
+            return
+        }
+        
+        // 파일 크기 검증
+        let validation = validateFileSize(at: url)
+        guard validation.isValid else {
+            print("❌ File size too large: \(String(format: "%.2f", validation.sizeInMB)) MB")
+            showAlert(title: "파일 크기 초과", message: "50MB 이하의 파일만 업로드 가능합니다.\n현재 파일 크기: \(String(format: "%.2f", validation.sizeInMB))MB")
+            return
+        }
+        
+        print("✅ File size OK: \(String(format: "%.2f", validation.sizeInMB)) MB")
+        
+        // 파일을 앱 내부로 복사
+        guard let copiedFileURL = copyFileToDocuments(from: url) else {
+            showAlert(title: "파일 처리 오류", message: "파일을 처리하는 중 오류가 발생했습니다.")
+            return
+        }
+        
+        // 복사된 파일 URL 저장
+        selectedFileURL = copiedFileURL
+        
+        // UI 업데이트
+        let fileName = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+        updateUIForSelectedFile(fileName: fileName, fileSize: validation.sizeInMB)
+        updateEndButtonState()
+        
+        print("🎉 File successfully processed and ready for upload")
+    }
+    
+    private func updateUIForSelectedFile(fileName: String, fileSize: Double) {
+        DispatchQueue.main.async { [weak self] in
+            let displayName = fileName.count > 20 ? String(fileName.prefix(17)) + "..." : fileName
+            self?.upLoadLabel.text = "선택됨: \(displayName)"
+            self?.upLoadLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+            self?.loadDetailLabel.text = "크기: \(String(format: "%.2f", fileSize))MB | 업로드 준비 완료"
+            self?.loadDetailLabel.textColor = UIColor.systemGreen
+            
+            print("📱 UI updated for selected file")
+        }
+    }
+    
     private func updateEndButtonState() {
         DispatchQueue.main.async { [weak self] in
             let hasFile = self?.selectedFileURL != nil
@@ -360,7 +411,6 @@ class MainViewController: UIViewController {
         }
     }
     
-    // 일반 알림
     private func showAlert(title: String, message: String, completion: (() -> Void)? = nil) {
         DispatchQueue.main.async { [weak self] in
             let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
@@ -371,7 +421,6 @@ class MainViewController: UIViewController {
         }
     }
     
-    // 재시도 알림
     private func showRetryAlert(title: String, message: String, retryAction: @escaping () -> Void) {
         DispatchQueue.main.async { [weak self] in
             let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
@@ -382,12 +431,37 @@ class MainViewController: UIViewController {
             self?.present(alert, animated: true)
         }
     }
+    
+    // 메모리 정리를 위한 메서드
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        
+        // 선택된 파일이 임시 파일이고 업로드가 완료된 경우 정리
+        if let fileURL = selectedFileURL,
+           fileURL.path.contains(getDocumentsDirectory().path) {
+            try? FileManager.default.removeItem(at: fileURL)
+            print("🧹 Temporary file cleaned up")
+        }
+    }
 }
 
 // MARK: - UIDocumentPickerDelegate
 extension MainViewController: UIDocumentPickerDelegate {
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let selectedURL = urls.first else { return }
+        print("📎 Document picker returned \(urls.count) files")
+        guard let selectedURL = urls.first else {
+            print("❌ No file selected")
+            return
+        }
+        
+        print("📄 Selected file URL: \(selectedURL)")
+        print("📍 File path: \(selectedURL.path)")
+        print("🏷️ File name: \(selectedURL.lastPathComponent)")
+        
         handleSelectedFile(selectedURL)
+    }
+    
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        print("📋 Document picker was cancelled")
     }
 }
