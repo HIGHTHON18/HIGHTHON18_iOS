@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 
-// MARK: - API Configuration
 struct APIConfig {
     static let baseURL = "http://10.10.6.83:8080"
 }
@@ -46,7 +45,6 @@ enum APIEndpoint {
     }
 }
 
-// MARK: - Network Manager
 class NetworkManager {
     static let shared = NetworkManager()
     
@@ -337,8 +335,7 @@ class NetworkManager {
             }
         }.resume()
     }
-    
-    // MARK: - Get Feedback Detail API (새로 추가)
+
     func getFeedbackDetail(feedbackId: String, accessToken: String, completion: @escaping (Result<FeedbackDetailResponse, NetworkError>) -> Void) {
         guard let url = APIEndpoint.getFeedbackDetail(feedbackId: feedbackId).url else {
             print("❌ Invalid URL for feedback detail API")
@@ -410,12 +407,39 @@ class NetworkManager {
                 print("🎯 Overall Status: \(feedbackResult.feedback.overallStatus)")
                 print("🎯 Project Status: \(feedbackResult.feedback.projectStatus)")
                 
+                // 평가 점수 확인
+                if let overallEval = feedbackResult.feedback.overallEvaluation {
+                    print("📊 Job Fit Score: \(overallEval.jobFit.score)")
+                    print("📊 Logical Thinking Score: \(overallEval.logicalThinking.score)")
+                    print("📊 Writing Clarity Score: \(overallEval.writingClarity.score)")
+                    print("📊 Layout Readability Score: \(overallEval.layoutReadability.score)")
+                } else {
+                    print("⚠️ No overall evaluation data found")
+                }
+                
                 completion(.success(feedbackResponse))
                 
             } catch {
                 print("❌ Feedback Detail Decoding Error: \(error)")
+                
+                // 구체적인 디코딩 에러 정보 출력
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        print("🔍 Missing key: \(key), Context: \(context)")
+                    case .typeMismatch(let type, let context):
+                        print("🔍 Type mismatch: \(type), Context: \(context)")
+                    case .valueNotFound(let type, let context):
+                        print("🔍 Value not found: \(type), Context: \(context)")
+                    case .dataCorrupted(let context):
+                        print("🔍 Data corrupted: \(context)")
+                    @unknown default:
+                        print("🔍 Unknown decoding error")
+                    }
+                }
+                
                 if let jsonString = String(data: data, encoding: .utf8) {
-                    print("🔍 Raw JSON for debugging: \(jsonString)")
+                    print("🔍 Raw JSON for debugging: \(jsonString.prefix(500))...")
                 }
                 completion(.failure(.decodingError(error)))
             }
@@ -483,7 +507,7 @@ struct FeedbackStartResponse: Codable {
     let feedbackId: String
 }
 
-// 피드백 상세 조회 API 응답 구조 (새로 추가)
+// MARK: - 피드백 상세 조회 API 응답 구조 (업데이트된 실제 구조)
 struct FeedbackDetailAPIResponse: Codable {
     let status: String
     let code: String
@@ -505,6 +529,98 @@ struct FeedbackDetail: Codable {
     let title: String
     let overallStatus: String
     let projectStatus: String
+    let overallEvaluation: OverallEvaluation?
+    let projectEvaluation: [ProjectEvaluation]?
+    let feedbackPerPage: [FeedbackPerPage]?
+    let imageList: [String]?
+    
+    // 실제 API에서는 overallEvaluation 안에 있는 항목들
+    var jobFit: EvaluationItem? {
+        return overallEvaluation?.jobFit
+    }
+    
+    var logicalThinking: EvaluationItem? {
+        return overallEvaluation?.logicalThinking
+    }
+    
+    var writingClarity: EvaluationItem? {
+        return overallEvaluation?.writingClarity
+    }
+    
+    var layoutReadability: EvaluationItem? {
+        return overallEvaluation?.layoutReadability
+    }
+}
+
+struct OverallEvaluation: Codable {
+    let summary: String
+    let jobFit: EvaluationItem
+    let logicalThinking: EvaluationItem
+    let writingClarity: EvaluationItem
+    let layoutReadability: EvaluationItem
+    let strengths: [StrengthItem]?
+    let improvements: [ImprovementItem]?
+    let roadmap: [RoadmapItem]?
+}
+
+struct EvaluationItem: Codable {
+    let score: Int
+    let review: String
+}
+
+struct StrengthItem: Codable {
+    let title: String
+    let content: [String]
+}
+
+struct ImprovementItem: Codable {
+    let title: String
+    let content: [String]
+}
+
+struct RoadmapItem: Codable {
+    let id: Int
+    let parentId: Int?
+    let title: String
+    let content: String
+    let xcoord: Int
+    let ycoord: Int
+    let createdAt: String?
+    let updatedAt: String?
+    let children: [RoadmapItem]?
+}
+
+struct ProjectEvaluation: Codable {
+    let projectName: String
+    let projectImageUrl: String?
+    let process: [String]
+    let processReview: String
+    let positiveFeedback: [FeedbackItem]
+    let negativeFeedback: [FeedbackItem]
+    let feedbackPerPage: [FeedbackPerPage]?
+    let projectSummary: String
+}
+
+struct FeedbackItem: Codable {
+    let title: String
+    let content: [String]
+}
+
+struct FeedbackPerPage: Codable {
+    let pageNumber: String
+    let contents: [PageContent]
+    let imageUrl: String
+}
+
+struct PageContent: Codable {
+    let type: String
+    let title: String
+    let editPairs: [EditPair]
+}
+
+struct EditPair: Codable {
+    let beforeEdit: String
+    let afterEdit: String
 }
 
 struct FeedbackDetailResponse: Codable {

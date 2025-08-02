@@ -2,71 +2,66 @@ import UIKit
 import SnapKit
 import Then
 
-// MARK: - Data Model
-struct LogicalThinkingItem {
+struct EvaluationDisplayItem {
     let id: Int
     let title: String
+    let titleEng: String
     let description: String
-    let additionalText: String
     let score: Int
+    let bgColor: UIColor
+    let titleColor: UIColor
 }
-
-// MARK: - Collection View Cell
-class LogicalThinkingCell: UICollectionViewCell {
-    static let identifier = "LogicalThinkingCell"
-    
-    // MARK: - UI Components
+class EvaluationCell: UICollectionViewCell {
+    static let identifier = "EvaluationCell"
     private let containerView = UIView().then {
         $0.backgroundColor = .white
-        $0.layer.cornerRadius = 16
+        $0.layer.cornerRadius = 20
         $0.layer.shadowColor = UIColor.black.cgColor
-        $0.layer.shadowOffset = CGSize(width: 0, height: 2)
-        $0.layer.shadowRadius = 4
-        $0.layer.shadowOpacity = 0.1
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = UIColor.systemGray6.cgColor
+        $0.layer.shadowOffset = CGSize(width: 0, height: 4)
+        $0.layer.shadowRadius = 8
+        $0.layer.shadowOpacity = 0.08
     }
     
-    private let headerView = UIView().then {
-        $0.layer.cornerRadius = 12
+    private let backgroundColorView = UIView().then {
+        $0.layer.cornerRadius = 16
+        $0.alpha = 0.1
     }
     
     private let titleLabel = UILabel().then {
-        $0.font = UIFont.systemFont(ofSize: 14, weight: .bold)
-        $0.textColor = .darkGray
+        $0.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        $0.textColor = .black
         $0.numberOfLines = 1
+        $0.textAlignment = .left
     }
     
-    private let decorationStackView = UIStackView().then {
-        $0.axis = .horizontal
-        $0.spacing = 4
-        $0.alignment = .center
+    private let titleEngLabel = UILabel().then {
+        $0.font = UIFont.systemFont(ofSize: 11, weight: .medium)
+        $0.textColor = .gray
+        $0.numberOfLines = 1
+        $0.textAlignment = .left
     }
     
     private let descriptionLabel = UILabel().then {
-        $0.font = UIFont.systemFont(ofSize: 10, weight: .medium)
+        $0.font = UIFont.systemFont(ofSize: 12, weight: .regular)
         $0.textColor = .darkGray
-        $0.numberOfLines = 0
-        $0.lineBreakMode = .byWordWrapping
+        $0.numberOfLines = 4
+        $0.lineBreakMode = .byTruncatingTail
     }
     
-    private let additionalLabel = UILabel().then {
-        $0.font = UIFont.systemFont(ofSize: 10, weight: .regular)
-        $0.textColor = .gray
-        $0.numberOfLines = 0
-        $0.lineBreakMode = .byWordWrapping
+    private let scoreBadgeView = UIView().then {
+        $0.layer.cornerRadius = 18
+        $0.backgroundColor = .systemBlue
     }
     
     private let scoreLabel = UILabel().then {
-        $0.font = UIFont.systemFont(ofSize: 32, weight: .bold)
-        $0.textColor = .systemPurple
-        $0.textAlignment = .right
+        $0.font = UIFont.systemFont(ofSize: 18, weight: .bold)
+        $0.textColor = .white
+        $0.textAlignment = .center
     }
     
-    private let scoreUnitLabel = UILabel().then {
-        $0.font = UIFont.systemFont(ofSize: 16, weight: .bold)
-        $0.textColor = .systemPurple
-        $0.text = "점"
+    private let decorationView = UIView().then {
+        $0.layer.cornerRadius = 4
+        $0.alpha = 0.3
     }
     
     // MARK: - Initialization
@@ -84,116 +79,75 @@ class LogicalThinkingCell: UICollectionViewCell {
     private func setupUI() {
         contentView.addSubview(containerView)
         
-        [headerView, descriptionLabel, additionalLabel, scoreLabel, scoreUnitLabel].forEach {
+        [backgroundColorView, titleLabel, titleEngLabel, descriptionLabel, scoreBadgeView, decorationView].forEach {
             containerView.addSubview($0)
         }
         
-        [titleLabel, decorationStackView].forEach {
-            headerView.addSubview($0)
-        }
-        
-        setupHeaderGradient()
-        setupDecorationViews()
-    }
-    
-    private func setupHeaderGradient() {
-        let gradientLayer = CAGradientLayer()
-        gradientLayer.colors = [
-            UIColor.systemPurple.withAlphaComponent(0.3).cgColor,
-            UIColor.systemPurple.withAlphaComponent(0.5).cgColor
-        ]
-        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
-        gradientLayer.endPoint = CGPoint(x: 1, y: 0)
-        gradientLayer.cornerRadius = 12
-        
-        headerView.layer.insertSublayer(gradientLayer, at: 0)
-        
-        DispatchQueue.main.async {
-            gradientLayer.frame = self.headerView.bounds
-        }
-    }
-    
-    private func setupDecorationViews() {
-        let smallDot1 = createDotView(size: 6, color: .systemPurple.withAlphaComponent(0.6))
-        let mediumDot = createDotView(size: 10, color: .systemPurple.withAlphaComponent(0.8))
-        let smallDot2 = createDotView(size: 6, color: .systemPurple.withAlphaComponent(0.6))
-        
-        [smallDot1, mediumDot, smallDot2].forEach {
-            decorationStackView.addArrangedSubview($0)
-        }
-        
-        let largeDot = createDotView(size: 20, color: .systemPurple.withAlphaComponent(0.3))
-        headerView.addSubview(largeDot)
-        
-        largeDot.snp.makeConstraints { make in
-            make.bottom.equalToSuperview().offset(-4)
-            make.trailing.equalToSuperview().offset(-4)
-            make.width.height.equalTo(20)
-        }
-    }
-    
-    private func createDotView(size: CGFloat, color: UIColor) -> UIView {
-        return UIView().then {
-            $0.backgroundColor = color
-            $0.layer.cornerRadius = size / 2
-            $0.snp.makeConstraints { make in
-                make.width.height.equalTo(size)
-            }
-        }
+        scoreBadgeView.addSubview(scoreLabel)
     }
     
     private func setupConstraints() {
         containerView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        
+        backgroundColorView.snp.makeConstraints { make in
             make.edges.equalToSuperview().inset(4)
         }
         
-        headerView.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview().inset(12)
-            make.height.equalTo(50)
-        }
-        
         titleLabel.snp.makeConstraints { make in
-            make.top.leading.equalToSuperview().inset(12)
-            make.trailing.lessThanOrEqualTo(decorationStackView.snp.leading).offset(-8)
+            make.top.equalToSuperview().inset(20)
+            make.leading.equalToSuperview().inset(16)
+            make.trailing.lessThanOrEqualTo(scoreBadgeView.snp.leading).offset(-8)
         }
         
-        decorationStackView.snp.makeConstraints { make in
-            make.top.trailing.equalToSuperview().inset(8)
+        titleEngLabel.snp.makeConstraints { make in
+            make.top.equalTo(titleLabel.snp.bottom).offset(2)
+            make.leading.equalToSuperview().inset(16)
+            make.trailing.lessThanOrEqualTo(scoreBadgeView.snp.leading).offset(-8)
         }
         
-        descriptionLabel.snp.makeConstraints { make in
-            make.top.equalTo(headerView.snp.bottom).offset(12)
-            make.leading.trailing.equalToSuperview().inset(12)
-        }
-        
-        additionalLabel.snp.makeConstraints { make in
-            make.top.equalTo(descriptionLabel.snp.bottom).offset(8)
-            make.leading.trailing.equalToSuperview().inset(12)
+        scoreBadgeView.snp.makeConstraints { make in
+            make.top.equalToSuperview().inset(16)
+            make.trailing.equalToSuperview().inset(16)
+            make.width.height.equalTo(36)
         }
         
         scoreLabel.snp.makeConstraints { make in
-            make.bottom.equalToSuperview().inset(12)
-            make.trailing.equalTo(scoreUnitLabel.snp.leading).offset(-4)
+            make.center.equalToSuperview()
         }
         
-        scoreUnitLabel.snp.makeConstraints { make in
-            make.bottom.equalToSuperview().inset(16)
-            make.trailing.equalToSuperview().inset(12)
+        descriptionLabel.snp.makeConstraints { make in
+            make.top.equalTo(titleEngLabel.snp.bottom).offset(16)
+            make.leading.trailing.equalToSuperview().inset(16)
+            make.bottom.lessThanOrEqualTo(decorationView.snp.top).offset(-8)
+        }
+        
+        decorationView.snp.makeConstraints { make in
+            make.bottom.trailing.equalToSuperview().inset(12)
+            make.width.equalTo(40)
+            make.height.equalTo(8)
         }
     }
     
     // MARK: - Configuration
-    func configure(with item: LogicalThinkingItem) {
+    func configure(with item: EvaluationDisplayItem) {
         titleLabel.text = item.title
+        titleEngLabel.text = item.titleEng
         descriptionLabel.text = item.description
-        additionalLabel.text = item.additionalText
         scoreLabel.text = "\(item.score)"
+        
+        backgroundColorView.backgroundColor = item.bgColor
+        scoreBadgeView.backgroundColor = item.bgColor
+        decorationView.backgroundColor = item.bgColor
+        titleLabel.textColor = item.titleColor
     }
     
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        if let gradientLayer = headerView.layer.sublayers?.first as? CAGradientLayer {
-            gradientLayer.frame = headerView.bounds
-        }
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        titleLabel.text = nil
+        titleEngLabel.text = nil
+        descriptionLabel.text = nil
+        scoreLabel.text = nil
     }
 }

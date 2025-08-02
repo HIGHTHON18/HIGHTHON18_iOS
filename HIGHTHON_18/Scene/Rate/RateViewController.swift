@@ -2,9 +2,10 @@ import UIKit
 import SnapKit
 import Then
 
-
-
 class RateViewController: UIViewController {
+    
+    // MARK: - Properties
+    var feedbackDetail: FeedbackDetail?
     
     // MARK: - Original UI Components
     private let mainLogoImageView = UIImageView().then {
@@ -13,23 +14,29 @@ class RateViewController: UIViewController {
     
     private let arrowImageView = UIImageView().then {
         $0.image = UIImage(named: "arrow")?.withRenderingMode(.alwaysOriginal)
+        $0.isUserInteractionEnabled = true
     }
     
     private let rateImageView = UIImageView().then {
         $0.image = UIImage(named: "rateImage")?.withRenderingMode(.alwaysOriginal)
     }
-    
+
     private let overallEvaluationLabel = UILabel().then {
         $0.text = "종합 평가"
         $0.font = UIFont.systemFont(ofSize: 24, weight: .semibold)
         $0.textColor = UIColor(named: "customBlack")
     }
-    
-    // MARK: - Collection View Components
+
     private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
-        layout.itemSize = CGSize(width: 173, height: 205)
-        layout.minimumInteritemSpacing = 12
+        let screenWidth = UIScreen.main.bounds.width
+        let horizontalPadding: CGFloat = 32 // 좌우 여백
+        let interItemSpacing: CGFloat = 12 // 셀 간격
+        let cellWidth = (screenWidth - horizontalPadding - interItemSpacing) / 2
+        let cellHeight: CGFloat = 140
+        
+        layout.itemSize = CGSize(width: cellWidth, height: cellHeight)
+        layout.minimumInteritemSpacing = interItemSpacing
         layout.minimumLineSpacing = 16
         layout.sectionInset = UIEdgeInsets(top: 0, left: 16, bottom: 20, right: 16)
         
@@ -37,13 +44,14 @@ class RateViewController: UIViewController {
         cv.backgroundColor = .clear
         cv.delegate = self
         cv.dataSource = self
-        cv.register(LogicalThinkingCell.self, forCellWithReuseIdentifier: LogicalThinkingCell.identifier)
+        cv.register(EvaluationCell.self, forCellWithReuseIdentifier: EvaluationCell.identifier)
         cv.showsVerticalScrollIndicator = false
+        cv.isScrollEnabled = false // 4개 항목만 있으므로 스크롤 비활성화
         return cv
     }()
     
     // MARK: - Data
-    private var logicalThinkingItems: [LogicalThinkingItem] = []
+    private var evaluationItems: [EvaluationDisplayItem] = []
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -52,54 +60,152 @@ class RateViewController: UIViewController {
         setupData()
         addView()
         layout()
+        setupGestures()
     }
     
-    // MARK: - Setup Methods
     private func setupData() {
-        logicalThinkingItems = [
-            LogicalThinkingItem(
-                id: 1,
-                title: "논리적 사고",
-                description: "프로젝트 별 논리적인 흐름이나 설득력이 부족해요.",
-                additionalText: "근거를 강화할 수 있는 구체적인 내용을 좀 더 추가하는 것이 필요해요.",
-                score: 90
-            ),
-            LogicalThinkingItem(
-                id: 2,
-                title: "창의적 사고",
-                description: "새로운 아이디어와 접근법을 통해 혁신적인 해결책을 제시해요.",
-                additionalText: "독창적인 관점에서 문제를 바라보는 능력이 뛰어나요.",
-                score: 85
-            ),
-            LogicalThinkingItem(
-                id: 3,
-                title: "비판적 사고",
-                description: "정보를 객관적으로 분석하고 평가하는 능력이 우수해요.",
-                additionalText: "다각도에서 문제를 검토하여 합리적 판단을 내려요.",
-                score: 88
-            ),
-            LogicalThinkingItem(
-                id: 4,
-                title: "체계적 사고",
-                description: "복잡한 문제를 단계별로 분해하여 체계적으로 접근해요.",
-                additionalText: "전체적인 맥락을 고려하면서 세부사항까지 꼼꼼히 살펴요.",
-                score: 92
-            ),
-            LogicalThinkingItem(
-                id: 5,
-                title: "전략적 사고",
-                description: "장기적인 관점에서 목표를 설정하고 계획을 수립해요.",
-                additionalText: "현재 상황을 분석하여 미래를 예측하고 대비해요.",
-                score: 87
-            ),
-            LogicalThinkingItem(
-                id: 6,
-                title: "협력적 사고",
-                description: "팀워크를 통해 시너지 효과를 창출하는 능력이 뛰어나요.",
-                additionalText: "다양한 의견을 수렴하여 최적의 해결책을 찾아요.",
-                score: 91
-            )
-        ]
+        var items: [EvaluationDisplayItem] = []
+        
+        if let feedback = feedbackDetail {
+            // 네트워크 응답 데이터로 설정
+            print("🔍 Setting up data with feedback detail")
+            
+            if let jobFit = feedback.jobFit {
+                print("✅ Adding Job Fit: score=\(jobFit.score)")
+                items.append(EvaluationDisplayItem(
+                    id: 1,
+                    title: "직무 적합성",
+                    titleEng: "Job Fit",
+                    description: jobFit.review,
+                    score: jobFit.score,
+                    bgColor: .systemBlue,
+                    titleColor: .systemBlue
+                ))
+            }
+            
+            if let logicalThinking = feedback.logicalThinking {
+                print("✅ Adding Logical Thinking: score=\(logicalThinking.score)")
+                items.append(EvaluationDisplayItem(
+                    id: 2,
+                    title: "논리적 사고",
+                    titleEng: "Logical Thinking",
+                    description: logicalThinking.review,
+                    score: logicalThinking.score,
+                    bgColor: .systemGreen,
+                    titleColor: .systemGreen
+                ))
+            }
+            
+            if let writingClarity = feedback.writingClarity {
+                print("✅ Adding Writing Clarity: score=\(writingClarity.score)")
+                items.append(EvaluationDisplayItem(
+                    id: 3,
+                    title: "작성 명료성",
+                    titleEng: "Writing Clarity",
+                    description: writingClarity.review,
+                    score: writingClarity.score,
+                    bgColor: .systemOrange,
+                    titleColor: .systemOrange
+                ))
+            }
+            
+            if let layoutReadability = feedback.layoutReadability {
+                print("✅ Adding Layout Readability: score=\(layoutReadability.score)")
+                items.append(EvaluationDisplayItem(
+                    id: 4,
+                    title: "레이아웃 가독성",
+                    titleEng: "Layout Readability",
+                    description: layoutReadability.review,
+                    score: layoutReadability.score,
+                    bgColor: .systemPurple,
+                    titleColor: .systemPurple
+                ))
+            }
+            
+            print("📊 Total items from API: \(items.count)")
+            
+        } else {
+            print("⚠️ No feedback detail available, using sample data")
+            // 기본 샘플 데이터
+            items = [
+                EvaluationDisplayItem(
+                    id: 1,
+                    title: "직무 적합성",
+                    titleEng: "Job Fit",
+                    description: "해당 직무에 필요한 기술 스택과 경험이 얼마나 부합하는지 평가합니다.",
+                    score: 75,
+                    bgColor: .systemBlue,
+                    titleColor: .systemBlue
+                ),
+                EvaluationDisplayItem(
+                    id: 2,
+                    title: "논리적 사고",
+                    titleEng: "Logical Thinking",
+                    description: "문제 해결과정의 논리성과 체계적인 접근 방식을 평가합니다.",
+                    score: 70,
+                    bgColor: .systemGreen,
+                    titleColor: .systemGreen
+                ),
+                EvaluationDisplayItem(
+                    id: 3,
+                    title: "작성 명료성",
+                    titleEng: "Writing Clarity",
+                    description: "내용 전달의 명확성과 글의 가독성을 종합적으로 평가합니다.",
+                    score: 65,
+                    bgColor: .systemOrange,
+                    titleColor: .systemOrange
+                ),
+                EvaluationDisplayItem(
+                    id: 4,
+                    title: "레이아웃 가독성",
+                    titleEng: "Layout Readability",
+                    description: "포트폴리오의 시각적 구성과 정보 배치의 효율성을 평가합니다.",
+                    score: 60,
+                    bgColor: .systemPurple,
+                    titleColor: .systemPurple
+                )
+            ]
+        }
+        
+        evaluationItems = items
+        print("🎯 Final evaluation items count: \(evaluationItems.count)")
+    }
+    
+    // MARK: - Public Methods (개선된 버전)
+    func updateWithFeedbackDetail(_ detail: FeedbackDetail) {
+        print("🔄 Updating RateViewController with feedback detail")
+        print("📋 Feedback ID: \(detail.id)")
+        print("📄 Title: \(detail.title)")
+        print("📊 Overall Status: \(detail.overallStatus)")
+        
+        self.feedbackDetail = detail
+        
+        // 평가 데이터 확인
+        if let overallEval = detail.overallEvaluation {
+            print("✅ Overall evaluation found")
+            print("📊 Job Fit: \(overallEval.jobFit.score) - \(overallEval.jobFit.review.prefix(50))...")
+            print("📊 Logical Thinking: \(overallEval.logicalThinking.score) - \(overallEval.logicalThinking.review.prefix(50))...")
+            print("📊 Writing Clarity: \(overallEval.writingClarity.score) - \(overallEval.writingClarity.review.prefix(50))...")
+            print("📊 Layout Readability: \(overallEval.layoutReadability.score) - \(overallEval.layoutReadability.review.prefix(50))...")
+        } else {
+            print("⚠️ No overall evaluation found in feedback detail")
+        }
+        
+        setupData()
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.collectionView.reloadData()
+            print("🔄 Collection view reloaded with new data")
+        }
+    }
+    
+    private func setupGestures() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(arrowTapped))
+        arrowImageView.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func arrowTapped() {
+        navigationController?.popViewController(animated: true)
     }
     
     func addView() {
@@ -138,7 +244,7 @@ class RateViewController: UIViewController {
         collectionView.snp.makeConstraints {
             $0.top.equalTo(overallEvaluationLabel.snp.bottom).offset(20)
             $0.leading.trailing.equalToSuperview()
-            $0.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom)
+            $0.height.equalTo(296) // 2줄 * 140 + 간격 16 = 296
         }
     }
 }
@@ -146,12 +252,12 @@ class RateViewController: UIViewController {
 // MARK: - UICollectionViewDataSource
 extension RateViewController: UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return logicalThinkingItems.count
+        return evaluationItems.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: LogicalThinkingCell.identifier, for: indexPath) as! LogicalThinkingCell
-        cell.configure(with: logicalThinkingItems[indexPath.item])
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: EvaluationCell.identifier, for: indexPath) as! EvaluationCell
+        cell.configure(with: evaluationItems[indexPath.item])
         return cell
     }
 }
@@ -160,8 +266,21 @@ extension RateViewController: UICollectionViewDataSource {
 extension RateViewController: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         collectionView.deselectItem(at: indexPath, animated: true)
-        let selectedItem = logicalThinkingItems[indexPath.item]
-        print("Selected: \(selectedItem.title)")
-        // 여기에 셀 터치 이벤트 처리 로직 추가
+        let selectedItem = evaluationItems[indexPath.item]
+        print("Selected: \(selectedItem.title) - Score: \(selectedItem.score)")
+        
+        // 상세 리뷰 내용을 보여주는 팝업이나 다른 화면으로 이동 가능
+        showDetailReview(for: selectedItem)
+    }
+    
+    private func showDetailReview(for item: EvaluationDisplayItem) {
+        let alert = UIAlertController(
+            title: item.title,
+            message: item.description,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        present(alert, animated: true)
     }
 }
