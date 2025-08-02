@@ -32,6 +32,13 @@ class MainViewController: UIViewController {
        $0.layer.cornerRadius = 10
        $0.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
     }
+    private let tabBarBackView = UIView().then {
+        $0.backgroundColor = .white
+        $0.layer.cornerRadius = 10
+    }
+    private let rankImageView = UIImageView().then {
+        $0.image = UIImage(named: "rank")?.withRenderingMode(.alwaysOriginal)
+    }
     
     
     override func viewDidLoad() {
@@ -50,7 +57,9 @@ class MainViewController: UIViewController {
             mainFileImageView,
             loadDetailLabel,
             selectImageView,
-            endButton
+            endButton,
+            tabBarBackView,
+            rankImageView
         ].forEach { view.addSubview($0) }
     }
     
@@ -83,16 +92,22 @@ class MainViewController: UIViewController {
             $0.height.equalTo(202)
         }
         selectImageView.snp.makeConstraints {
-            $0.top.equalTo(535)
-            $0.centerX.equalToSuperview()
+           $0.bottom.equalTo(endButton.snp.top).offset(-78)
+           $0.centerX.equalToSuperview()
         }
         endButton.snp.makeConstraints {
-            $0.top.equalTo(selectImageView.snp.bottom).offset(78)
-            $0.leading.trailing.equalToSuperview().inset(16)
-            $0.width.equalTo(396)
-            $0.height.equalTo(51)
+          $0.bottom.equalTo(tabBarBackView.snp.top).offset(-108)
+          $0.leading.trailing.equalToSuperview().inset(16)
+          $0.height.equalTo(51)
         }
-     
+        tabBarBackView.snp.makeConstraints {
+          $0.bottom.equalTo(view.safeAreaLayoutGuide)
+          $0.leading.trailing.equalToSuperview().inset(16)
+          $0.height.equalTo(72)
+        }
+        rankImageView.snp.makeConstraints {
+            
+        }
     }
 }
 
