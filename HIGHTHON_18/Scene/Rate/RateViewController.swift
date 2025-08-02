@@ -3,7 +3,11 @@ import SnapKit
 import Then
 
 class RateViewController: UIViewController {
+    
+    // MARK: - Properties
     var feedbackDetail: FeedbackDetail?
+    
+    // MARK: - Original UI Components
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
     }
@@ -19,6 +23,19 @@ class RateViewController: UIViewController {
 
     private let overallEvaluationLabel = UILabel().then {
         $0.text = "종합 평가"
+        $0.font = UIFont.systemFont(ofSize: 24, weight: .semibold)
+        $0.textColor = UIColor(named: "customBlack")
+    }
+    
+    private let overallEvaluationDetailLabel = UILabel().then {
+        $0.text = "데이터 기반의 UX디자인이 돋보여요" // 기본값, API 응답으로 업데이트됨
+        $0.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        $0.textColor = UIColor(named: "publicBlue")
+        $0.numberOfLines = 0 // 여러 줄 지원
+    }
+    
+    private let scoreLabel = UILabel().then {
+        $0.text = "점수 평가"
         $0.font = UIFont.systemFont(ofSize: 24, weight: .semibold)
         $0.textColor = UIColor(named: "customBlack")
     }
@@ -46,6 +63,8 @@ class RateViewController: UIViewController {
         return cv
     }()
     
+//    private let strong
+    
     // MARK: - Data
     private var evaluationItems: [EvaluationDisplayItem] = []
     
@@ -67,6 +86,9 @@ class RateViewController: UIViewController {
            let overallEval = feedback.overallEvaluation {
             
             print("🔍 Setting up data with overall evaluation")
+            
+            // Summary 설정
+            updateSummaryLabel(overallEval.summary)
             
             // 1. 직무 적합성
             let jobFit = overallEval.jobFit
@@ -106,7 +128,8 @@ class RateViewController: UIViewController {
                 bgColor: getColorForScore(writingClarity.score, baseColor: .systemOrange),
                 titleColor: .systemOrange
             ))
-
+            
+            // 4. 레이아웃 가독성
             let layoutReadability = overallEval.layoutReadability
             print("✅ Adding Layout Readability: score=\(layoutReadability.score)")
             items.append(EvaluationDisplayItem(
@@ -123,6 +146,9 @@ class RateViewController: UIViewController {
             
         } else {
             print("⚠️ No feedback detail available, using sample data")
+            // 기본 요약 텍스트 설정
+            updateSummaryLabel("데이터 기반의 UX디자인이 돋보여요")
+            
             // 기본 샘플 데이터
             items = [
                 EvaluationDisplayItem(
@@ -169,6 +195,13 @@ class RateViewController: UIViewController {
     }
     
     // MARK: - Helper Methods
+    private func updateSummaryLabel(_ summaryText: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.overallEvaluationDetailLabel.text = summaryText
+            print("📝 Updated summary label: \(summaryText)")
+        }
+    }
+    
     private func getColorForScore(_ score: Int, baseColor: UIColor) -> UIColor {
         // 점수에 따라 색상 강도 조절
         switch score {
@@ -226,6 +259,8 @@ class RateViewController: UIViewController {
             arrowImageView,
             rateImageView,
             overallEvaluationLabel,
+            overallEvaluationDetailLabel,
+            scoreLabel,
             collectionView
         ].forEach { view.addSubview($0) }
     }
@@ -253,8 +288,18 @@ class RateViewController: UIViewController {
             $0.leading.equalToSuperview().inset(16)
         }
         
+        overallEvaluationDetailLabel.snp.makeConstraints {
+            $0.top.equalTo(overallEvaluationLabel.snp.bottom).offset(18)
+            $0.leading.trailing.equalToSuperview().inset(16)
+        }
+        
+        scoreLabel.snp.makeConstraints {
+            $0.top.equalTo(overallEvaluationDetailLabel.snp.bottom).offset(36)
+            $0.leading.equalToSuperview().inset(16)
+        }
+        
         collectionView.snp.makeConstraints {
-            $0.top.equalTo(overallEvaluationLabel.snp.bottom).offset(20)
+            $0.top.equalTo(scoreLabel.snp.bottom).offset(20)
             $0.leading.trailing.equalToSuperview()
             $0.height.equalTo(296) // 2줄 * 140 + 간격 16 = 296
         }
