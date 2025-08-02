@@ -44,6 +44,9 @@ class MainViewController: UIViewController {
     private let logImageView = UIImageView().then {
         $0.image = UIImage(named: "log")?.withRenderingMode(.alwaysOriginal)
     }
+    private let plusImageView = UIImageView().then {
+        $0.image = UIImage(named: "plus")?.withRenderingMode(.alwaysOriginal)
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -66,7 +69,8 @@ class MainViewController: UIViewController {
             loadDetailLabel,
             selectImageView,
             endButton,
-            tabBarBackView
+            tabBarBackView,
+            plusImageView
         ].forEach { view.addSubview($0) }
         
         tabBarBackView.addSubview(rankImageView)
@@ -128,6 +132,12 @@ class MainViewController: UIViewController {
             $0.leading.equalToSuperview().offset(260)
             $0.bottom.equalToSuperview().offset(-15)
             $0.width.equalTo(25)
+        }
+        plusImageView.snp.makeConstraints {
+            $0.top.equalTo(endButton.snp.bottom).offset(64)
+            $0.centerX.equalToSuperview()
+            $0.width.equalTo(89)
+            $0.height.equalTo(88)
         }
     }
 }
