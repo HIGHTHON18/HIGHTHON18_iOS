@@ -60,7 +60,6 @@ class MoveViewController: UIViewController {
     
     func layout() {
         daeImageView.snp.makeConstraints {
-//            $0.top.equalTo(view.safeAreaLayoutGuide)
             $0.top.equalTo(47)
             $0.centerX.equalToSuperview()
             $0.width.equalTo(58)
@@ -103,15 +102,51 @@ class MoveViewController: UIViewController {
             $0.height.equalTo(88)
         }
     }
-    
-    // 제스처 설정 함수 추가
+
     private func setupGestures() {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(plusImageViewTapped))
         plusImageView.addGestureRecognizer(tapGesture)
     }
-    
-    // plusImageView 탭 시 실행될 함수
+
     @objc private func plusImageViewTapped() {
         navigationController?.popViewController(animated: true)
+    }
+
+    // MARK: - Error Alert Methods
+    func showUploadErrorAlert(message: String) {
+        let alert = UIAlertController(
+            title: "업로드 실패",
+            message: message,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "재시도", style: .default) { [weak self] _ in
+            self?.navigationController?.popViewController(animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel) { [weak self] _ in
+            self?.navigationController?.popViewController(animated: true)
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    // MARK: - Feedback Start Error Alert (새로 추가)
+    func showFeedbackStartErrorAlert(message: String) {
+        let alert = UIAlertController(
+            title: "피드백 시작 실패",
+            message: message,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "재시도", style: .default) { [weak self] _ in
+            self?.navigationController?.popViewController(animated: true)
+        })
+        
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel) { [weak self] _ in
+            self?.navigationController?.popViewController(animated: true)
+        })
+        
+        present(alert, animated: true)
     }
 }

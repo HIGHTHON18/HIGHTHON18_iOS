@@ -10,6 +10,7 @@ struct APIConfig {
 enum APIEndpoint {
     case getToken(deviceToken: String)
     case uploadPortfolio
+    case startFeedback(fileId: String)
     
     var path: String {
         switch self {
@@ -17,6 +18,8 @@ enum APIEndpoint {
             return "/api/v1/users/get-token"
         case .uploadPortfolio:
             return "/api/v1/files/portfolio"
+        case .startFeedback:
+            return "/api/v1/feedback/start"
         }
     }
     
@@ -28,6 +31,10 @@ enum APIEndpoint {
             return components?.url
         case .uploadPortfolio:
             return URL(string: APIConfig.baseURL + path)
+        case .startFeedback(let fileId):
+            var components = URLComponents(string: APIConfig.baseURL + path)
+            components?.queryItems = [URLQueryItem(name: "fileId", value: fileId)]
+            return components?.url
         }
     }
 }
@@ -38,7 +45,7 @@ class NetworkManager {
     
     private init() {}
     
-    // MARK: - Token API (수정된 부분)
+    // MARK: - Token API
     func getToken(completion: @escaping (Result<TokenResponse, NetworkError>) -> Void) {
         print("🚀 Starting token API call...")
         
@@ -62,18 +69,16 @@ class NetworkManager {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 10.0  // 타임아웃 단축
+        request.timeoutInterval = 10.0
         
         print("📤 Sending token API request...")
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            // 응답 로깅
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 HTTP Status Code: \(httpResponse.statusCode)")
                 print("📋 Response Headers: \(httpResponse.allHeaderFields)")
             }
             
-            // 에러 체크
             if let error = error {
                 print("❌ Network Error: \(error.localizedDescription)")
                 if let urlError = error as? URLError {
@@ -91,34 +96,28 @@ class NetworkManager {
                 return
             }
             
-            // 데이터 체크
             guard let data = data else {
                 print("❌ No data received")
                 completion(.failure(.noData))
                 return
             }
             
-            // 받은 데이터 로깅
             if let jsonString = String(data: data, encoding: .utf8) {
                 print("📦 Received Data: \(jsonString)")
             }
             
-            // 빈 데이터 체크
             if data.isEmpty {
                 print("❌ Received empty data")
                 completion(.failure(.emptyData))
                 return
             }
             
-            // JSON 파싱
             do {
-                // API 명세에 맞는 응답 구조로 파싱
                 let apiResponse = try JSONDecoder().decode(TokenAPIResponse.self, from: data)
                 print("✅ Successfully decoded API response")
                 print("📊 Status: \(apiResponse.status), Code: \(apiResponse.code)")
                 print("💬 Message: \(apiResponse.message)")
                 
-                // API 응답 상태 확인
                 guard apiResponse.status == "OK" else {
                     print("❌ API Error - Status: \(apiResponse.status), Message: \(apiResponse.message)")
                     completion(.failure(.apiError(apiResponse.code, apiResponse.message)))
@@ -131,7 +130,6 @@ class NetworkManager {
                     return
                 }
                 
-                // TokenResponse 형식으로 변환
                 let tokenResponse = TokenResponse(
                     accessToken: tokenResult.accessToken,
                     expirationTime: tokenResult.expirationTime
@@ -155,6 +153,7 @@ class NetworkManager {
         print("⏳ Task started, waiting for response...")
     }
     
+    // MARK: - Upload Portfolio API
     func uploadPortfolio(fileURL: URL, accessToken: String, completion: @escaping (Result<PortfolioUploadResponse, NetworkError>) -> Void) {
         guard let url = APIEndpoint.uploadPortfolio.url else {
             completion(.failure(.invalidURL))
@@ -164,24 +163,21 @@ class NetworkManager {
         print("🌐 Upload API Request URL: \(url.absoluteString)")
         print("📁 File URL: \(fileURL.absoluteString)")
         
-        // 파일 데이터 읽기
         guard let fileData = try? Data(contentsOf: fileURL) else {
             print("❌ Failed to read file data")
             completion(.failure(.fileReadError))
             return
         }
         
-        // Multipart form data 생성
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 60.0  // 파일 업로드는 더 긴 타임아웃
+        request.timeoutInterval = 60.0
         
         var body = Data()
         
-        // 파일 데이터 추가
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileURL.lastPathComponent)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: application/pdf\r\n\r\n".data(using: .utf8)!)
@@ -251,12 +247,96 @@ class NetworkManager {
         }.resume()
     }
     
+    // MARK: - Start Feedback API (새로 추가)
+    func startFeedback(fileId: String, accessToken: String, completion: @escaping (Result<FeedbackStartResponse, NetworkError>) -> Void) {
+        guard let url = APIEndpoint.startFeedback(fileId: fileId).url else {
+            print("❌ Invalid URL for feedback start API")
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        print("🌐 Feedback Start API Request URL: \(url.absoluteString)")
+        print("🆔 File ID: \(fileId)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30.0
+        
+        print("📤 Sending feedback start API request...")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📡 Feedback Start HTTP Status Code: \(httpResponse.statusCode)")
+                print("📋 Response Headers: \(httpResponse.allHeaderFields)")
+            }
+            
+            if let error = error {
+                print("❌ Feedback Start Network Error: \(error.localizedDescription)")
+                completion(.failure(.networkError(error)))
+                return
+            }
+            
+            guard let data = data else {
+                print("❌ No feedback start response data received")
+                completion(.failure(.noData))
+                return
+            }
+            
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📦 Feedback Start Response Data: \(jsonString)")
+            }
+            
+            if data.isEmpty {
+                print("❌ Received empty feedback start data")
+                completion(.failure(.emptyData))
+                return
+            }
+            
+            do {
+                let apiResponse = try JSONDecoder().decode(FeedbackStartAPIResponse.self, from: data)
+                print("✅ Successfully decoded feedback start response")
+                print("📊 Feedback Status: \(apiResponse.status), Code: \(apiResponse.code)")
+                print("💬 Feedback Message: \(apiResponse.message)")
+                
+                guard apiResponse.status == "OK" else {
+                    print("❌ Feedback Start API Error - Status: \(apiResponse.status), Message: \(apiResponse.message)")
+                    completion(.failure(.apiError(apiResponse.code, apiResponse.message)))
+                    return
+                }
+                
+                guard let feedbackResult = apiResponse.result else {
+                    print("❌ No feedback result data in API response")
+                    completion(.failure(.noResultData))
+                    return
+                }
+                
+                let feedbackResponse = FeedbackStartResponse(
+                    feedbackId: feedbackResult.feedbackId
+                )
+                
+                print("🎯 Feedback ID: \(feedbackResult.feedbackId)")
+                
+                completion(.success(feedbackResponse))
+                
+            } catch {
+                print("❌ Feedback Start Decoding Error: \(error)")
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("🔍 Raw JSON for debugging: \(jsonString)")
+                }
+                completion(.failure(.decodingError(error)))
+            }
+        }.resume()
+    }
+    
     private func getDeviceToken() -> String? {
         return UIDevice.current.identifierForVendor?.uuidString
     }
 }
 
-// MARK: - Models (API 명세에 맞게 수정)
+// MARK: - Models
 
 // 토큰 API 응답 구조
 struct TokenAPIResponse: Codable {
@@ -271,7 +351,6 @@ struct TokenResult: Codable {
     let expirationTime: String
 }
 
-// 사용하기 쉬운 TokenResponse 구조
 struct TokenResponse: Codable {
     let accessToken: String
     let expirationTime: String
@@ -295,6 +374,22 @@ struct PortfolioUploadResponse: Codable {
     let id: String
     let logicalName: String
     let url: String
+}
+
+// 피드백 시작 API 응답 구조 (새로 추가)
+struct FeedbackStartAPIResponse: Codable {
+    let status: String
+    let code: String
+    let message: String
+    let result: FeedbackStartResult?
+}
+
+struct FeedbackStartResult: Codable {
+    let feedbackId: String
+}
+
+struct FeedbackStartResponse: Codable {
+    let feedbackId: String
 }
 
 // MARK: - Network Error

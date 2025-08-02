@@ -7,7 +7,7 @@ class MainViewController: UIViewController {
     private var accessToken: String?
     private var expirationTime: String?
     private var selectedFileURL: URL?
-    private var uploadedFileId: String? // 업로드된 파일 ID 저장
+    private var uploadedFileId: String?
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
     }
@@ -102,7 +102,12 @@ class MainViewController: UIViewController {
             return
         }
         
-        uploadPortfolioFile(fileURL: selectedFileURL, accessToken: accessToken)
+        // 바로 MoveViewController로 이동
+        let moveViewController = MoveViewController()
+        navigationController?.pushViewController(moveViewController, animated: true)
+        
+        // 백그라운드에서 파일 업로드 시작
+        uploadPortfolioFileInBackground(fileURL: selectedFileURL, accessToken: accessToken, moveViewController: moveViewController)
     }
     
     func addView() {
@@ -242,14 +247,12 @@ class MainViewController: UIViewController {
         }
     }
     
-    private func uploadPortfolioFile(fileURL: URL, accessToken: String) {
-        print("📤 Starting file upload...")
-        showLoading(true)
+    // MARK: - Background Upload Method (수정된 부분)
+    private func uploadPortfolioFileInBackground(fileURL: URL, accessToken: String, moveViewController: MoveViewController) {
+        print("📤 Starting background file upload...")
         
-        NetworkManager.shared.uploadPortfolio(fileURL: fileURL, accessToken: accessToken) { [weak self] result in
+        NetworkManager.shared.uploadPortfolio(fileURL: fileURL, accessToken: accessToken) { [weak self, weak moveViewController] result in
             DispatchQueue.main.async {
-                self?.showLoading(false)
-                
                 switch result {
                 case .success(let uploadResponse):
                     print("✅ File uploaded successfully")
@@ -261,12 +264,17 @@ class MainViewController: UIViewController {
                     self?.uploadedFileId = uploadResponse.id
                     print("💾 File ID saved: \(uploadResponse.id)")
                     
-                    // UserDefaults에도 저장 (앱 재시작 후에도 유지하려면)
+                    // UserDefaults에도 저장
                     UserDefaults.standard.set(uploadResponse.id, forKey: "lastUploadedFileId")
                     UserDefaults.standard.synchronize()
                     print("💾 File ID saved to UserDefaults")
                     
-                    self?.showSuccessAndNavigate(uploadId: uploadResponse.id)
+                    // 업로드 성공 후 피드백 시작 API 호출
+                    guard let moveVC = moveViewController else {
+                        print("❌ MoveViewController is nil")
+                        return
+                    }
+                    self?.startFeedbackInBackground(fileId: uploadResponse.id, accessToken: accessToken, moveViewController: moveVC)
                     
                 case .failure(let error):
                     print("❌ Upload Error: \(error.localizedDescription)")
@@ -279,25 +287,55 @@ class MainViewController: UIViewController {
                         errorMessage = message
                     }
                     
-                    self?.showAlert(title: "업로드 실패", message: errorMessage)
+                    // MoveViewController에서 에러 알림 표시
+                    if let moveVC = moveViewController {
+                        moveVC.showUploadErrorAlert(message: errorMessage)
+                    }
                 }
             }
         }
     }
     
-    private func showSuccessAndNavigate(uploadId: String) {
-        let alert = UIAlertController(
-            title: "업로드 완료",
-            message: "포트폴리오가 성공적으로 업로드되었습니다.\nID: \(uploadId)",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
-            let moveViewController = MoveViewController()
-            // MoveViewController에 업로드 ID 전달 (필요한 경우)
-            // moveViewController.uploadedFileId = uploadId
-            self?.navigationController?.pushViewController(moveViewController, animated: true)
-        })
-        present(alert, animated: true)
+    // MARK: - Start Feedback Method (새로 추가)
+    private func startFeedbackInBackground(fileId: String, accessToken: String, moveViewController: MoveViewController) {
+        print("🔄 Starting feedback process...")
+        
+        NetworkManager.shared.startFeedback(fileId: fileId, accessToken: accessToken) { [weak moveViewController] result in
+            DispatchQueue.main.async {
+                guard let moveVC = moveViewController else {
+                    print("❌ MoveViewController is nil in feedback callback")
+                    return
+                }
+                
+                switch result {
+                case .success(let feedbackResponse):
+                    print("✅ Feedback started successfully")
+                    print("🎯 Feedback ID: \(feedbackResponse.feedbackId)")
+                    
+                    // 피드백 시작 성공 후 RateViewController로 이동
+                    if let navigationController = moveVC.navigationController {
+                        let rateViewController = RateViewController()
+                        // RateViewController에 필요한 데이터 전달 (필요한 경우)
+                        // rateViewController.feedbackId = feedbackResponse.feedbackId
+                        navigationController.pushViewController(rateViewController, animated: true)
+                    }
+                    
+                case .failure(let error):
+                    print("❌ Feedback Start Error: \(error.localizedDescription)")
+                    
+                    var errorMessage = "피드백 시작 중 오류가 발생했습니다."
+                    
+                    if case .apiError(let code, let message) = error {
+                        print("📋 Feedback Error Code: \(code)")
+                        print("💬 Feedback Error Message: \(message)")
+                        errorMessage = message
+                    }
+                    
+                    // MoveViewController에서 에러 알림 표시
+                    moveVC.showFeedbackStartErrorAlert(message: errorMessage)
+                }
+            }
+        }
     }
     
     private func showLoading(_ show: Bool) {
@@ -311,9 +349,8 @@ class MainViewController: UIViewController {
         }
     }
     
-    // MARK: - File Selection Methods (완전히 수정된 부분)
+    // MARK: - File Selection Methods
     private func presentDocumentPicker() {
-        // UTType.pdf 사용하여 PDF 파일만 선택하도록 설정
         let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.pdf])
         documentPicker.delegate = self
         documentPicker.allowsMultipleSelection = false
@@ -322,25 +359,21 @@ class MainViewController: UIViewController {
         present(documentPicker, animated: true)
     }
     
-    // 앱의 Documents 디렉토리 경로 가져오기
     private func getDocumentsDirectory() -> URL {
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
     
-    // 파일을 앱 내부로 복사하는 메서드
     private func copyFileToDocuments(from sourceURL: URL) -> URL? {
         let documentsDirectory = getDocumentsDirectory()
         let fileName = sourceURL.lastPathComponent
         let destinationURL = documentsDirectory.appendingPathComponent(fileName)
         
         do {
-            // 기존 파일이 있다면 삭제
             if FileManager.default.fileExists(atPath: destinationURL.path) {
                 try FileManager.default.removeItem(at: destinationURL)
                 print("🗑️ Existing file removed")
             }
             
-            // 파일 복사
             try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
             print("📁 File copied to: \(destinationURL.path)")
             return destinationURL
@@ -351,7 +384,6 @@ class MainViewController: UIViewController {
         }
     }
     
-    // 파일 크기 검증
     private func validateFileSize(at url: URL) -> (isValid: Bool, sizeInMB: Double) {
         do {
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: url.path)
@@ -365,11 +397,9 @@ class MainViewController: UIViewController {
         return (false, 0)
     }
     
-    // 메인 파일 처리 메서드
     private func handleSelectedFile(_ url: URL) {
         print("🔍 Processing selected file: \(url.lastPathComponent)")
         
-        // 보안 스코프 접근 시작
         let hasAccess = url.startAccessingSecurityScopedResource()
         print("🔐 Security scoped access: \(hasAccess)")
         
@@ -380,14 +410,12 @@ class MainViewController: UIViewController {
             }
         }
         
-        // 파일 존재 여부 확인
         guard FileManager.default.fileExists(atPath: url.path) else {
             print("❌ File does not exist at path: \(url.path)")
             showAlert(title: "파일 오류", message: "선택한 파일을 찾을 수 없습니다.")
             return
         }
         
-        // 파일 크기 검증
         let validation = validateFileSize(at: url)
         guard validation.isValid else {
             print("❌ File size too large: \(String(format: "%.2f", validation.sizeInMB)) MB")
@@ -397,16 +425,13 @@ class MainViewController: UIViewController {
         
         print("✅ File size OK: \(String(format: "%.2f", validation.sizeInMB)) MB")
         
-        // 파일을 앱 내부로 복사
         guard let copiedFileURL = copyFileToDocuments(from: url) else {
             showAlert(title: "파일 처리 오류", message: "파일을 처리하는 중 오류가 발생했습니다.")
             return
         }
         
-        // 복사된 파일 URL 저장
         selectedFileURL = copiedFileURL
         
-        // UI 업데이트
         let fileName = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
         updateUIForSelectedFile(fileName: fileName, fileSize: validation.sizeInMB)
         updateEndButtonState()
@@ -468,11 +493,9 @@ class MainViewController: UIViewController {
         }
     }
     
-    // 메모리 정리를 위한 메서드
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         
-        // 선택된 파일이 임시 파일이고 업로드가 완료된 경우 정리
         if let fileURL = selectedFileURL,
            fileURL.path.contains(getDocumentsDirectory().path) {
             try? FileManager.default.removeItem(at: fileURL)
