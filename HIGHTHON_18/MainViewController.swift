@@ -31,6 +31,7 @@ class MainViewController: UIViewController {
         $0.setTitleColor(.white, for: .normal)
         $0.layer.cornerRadius = 10
         $0.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        $0.addTarget(self, action: #selector(endButtonTapped), for: .touchUpInside)
     }
     private let tabBarBackView = UIView().then {
         $0.backgroundColor = .white
@@ -43,6 +44,7 @@ class MainViewController: UIViewController {
     private let logImageView = UIImageView().then {
         $0.image = UIImage(named: "log")?.withRenderingMode(.alwaysOriginal)
     }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .backGround
@@ -50,6 +52,10 @@ class MainViewController: UIViewController {
         layout()
     }
     
+    @objc private func endButtonTapped() {
+        let moveViewController = MoveViewController()
+        navigationController?.pushViewController(moveViewController, animated: true)
+    }
     
     func addView() {
         [
@@ -111,13 +117,13 @@ class MainViewController: UIViewController {
         }
         rankImageView.snp.makeConstraints {
             $0.top.equalToSuperview().offset(12)
-            $0.leading.equalToSuperview().offset(99)
+            $0.leading.equalToSuperview().offset(80)
             $0.bottom.equalToSuperview().offset(-15)
             $0.width.equalTo(25)
         }
         logImageView.snp.makeConstraints {
             $0.top.equalToSuperview().offset(15)
-            $0.leading.equalToSuperview().offset(281)
+            $0.leading.equalToSuperview().offset(260)
             $0.bottom.equalToSuperview().offset(-15)
             $0.width.equalTo(25)
         }
