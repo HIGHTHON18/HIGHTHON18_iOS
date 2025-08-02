@@ -26,11 +26,11 @@ class MainViewController: UIViewController {
         $0.image = UIImage(named: "select")?.withRenderingMode(.alwaysOriginal)
     }
     private let endButton = UIButton().then {
-       $0.setTitle("완료", for: .normal)
-       $0.backgroundColor = .qwer
-       $0.setTitleColor(.white, for: .normal)
-       $0.layer.cornerRadius = 10
-       $0.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        $0.setTitle("완료", for: .normal)
+        $0.backgroundColor = .qwer
+        $0.setTitleColor(.white, for: .normal)
+        $0.layer.cornerRadius = 10
+        $0.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
     }
     private let tabBarBackView = UIView().then {
         $0.backgroundColor = .white
@@ -40,7 +40,9 @@ class MainViewController: UIViewController {
         $0.image = UIImage(named: "rank")?.withRenderingMode(.alwaysOriginal)
     }
     
-    
+    private let logImageView = UIImageView().then {
+        $0.image = UIImage(named: "log")?.withRenderingMode(.alwaysOriginal)
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .backGround
@@ -58,9 +60,11 @@ class MainViewController: UIViewController {
             loadDetailLabel,
             selectImageView,
             endButton,
-            tabBarBackView,
-            rankImageView
+            tabBarBackView
         ].forEach { view.addSubview($0) }
+        
+        tabBarBackView.addSubview(rankImageView)
+        tabBarBackView.addSubview(logImageView)
     }
     
     func layout() {
@@ -92,23 +96,30 @@ class MainViewController: UIViewController {
             $0.height.equalTo(202)
         }
         selectImageView.snp.makeConstraints {
-           $0.bottom.equalTo(endButton.snp.top).offset(-78)
-           $0.centerX.equalToSuperview()
+            $0.bottom.equalTo(endButton.snp.top).offset(-78)
+            $0.centerX.equalToSuperview()
         }
         endButton.snp.makeConstraints {
-          $0.bottom.equalTo(tabBarBackView.snp.top).offset(-108)
-          $0.leading.trailing.equalToSuperview().inset(16)
-          $0.height.equalTo(51)
+            $0.bottom.equalTo(tabBarBackView.snp.top).offset(-108)
+            $0.leading.trailing.equalToSuperview().inset(16)
+            $0.height.equalTo(51)
         }
         tabBarBackView.snp.makeConstraints {
-          $0.bottom.equalTo(view.safeAreaLayoutGuide)
-          $0.leading.trailing.equalToSuperview().inset(16)
-          $0.height.equalTo(72)
+            $0.bottom.equalTo(view.safeAreaLayoutGuide)
+            $0.leading.trailing.equalToSuperview().inset(16)
+            $0.height.equalTo(72)
         }
         rankImageView.snp.makeConstraints {
-            
+            $0.top.equalToSuperview().offset(12)
+            $0.leading.equalToSuperview().offset(99)
+            $0.bottom.equalToSuperview().offset(-15)
+            $0.width.equalTo(25)
+        }
+        logImageView.snp.makeConstraints {
+            $0.top.equalToSuperview().offset(15)
+            $0.leading.equalToSuperview().offset(281)
+            $0.bottom.equalToSuperview().offset(-15)
+            $0.width.equalTo(25)
         }
     }
 }
-
-
