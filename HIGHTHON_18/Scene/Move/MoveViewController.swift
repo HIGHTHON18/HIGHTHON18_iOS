@@ -95,7 +95,7 @@
             }
             rankImageView.snp.makeConstraints {
                 $0.top.equalToSuperview().offset(12)
-                $0.leading.equalToSuperview().offset(80)
+                $0.leading.equalToSuperview().offset(65)
                 $0.bottom.equalToSuperview().offset(-15)
                 $0.width.equalTo(25)
             }

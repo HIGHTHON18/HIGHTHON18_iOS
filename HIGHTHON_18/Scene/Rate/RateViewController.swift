@@ -109,6 +109,22 @@ class RateViewController: UIViewController {
         layout()
         setupGestures()
     }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // 네비게이션바 숨기기
+        navigationController?.setNavigationBarHidden(true, animated: animated)
+        // 자동 생성되는 뒤로가기 제스처 비활성화
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = false
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        // 다른 화면으로 이동할 때 네비게이션바 다시 표시
+        navigationController?.setNavigationBarHidden(false, animated: animated)
+        // 뒤로가기 제스처 다시 활성화
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+    }
 
     private func setupData() {
         var items: [EvaluationDisplayItem] = []

@@ -168,7 +168,7 @@ class MainViewController: UIViewController {
         }
         rankImageView.snp.makeConstraints {
             $0.top.equalToSuperview().offset(12)
-            $0.leading.equalToSuperview().offset(80)
+            $0.leading.equalToSuperview().offset(65)
             $0.bottom.equalToSuperview().offset(-15)
             $0.width.equalTo(25)
         }
@@ -435,11 +435,12 @@ class MainViewController: UIViewController {
     
     private func updateUIForSelectedFile(fileName: String, fileSize: Double) {
         DispatchQueue.main.async { [weak self] in
+            // 파일 이름을 20자 이내로 제한하여 표시
             let displayName = fileName.count > 20 ? String(fileName.prefix(17)) + "..." : fileName
-            self?.loadDetailLabel.text = "크기: \(String(format: "%.2f", fileSize))MB | 업로드 준비 완료"
+            self?.loadDetailLabel.text = displayName
             self?.loadDetailLabel.textColor = UIColor.systemGreen
             
-            print("📱 UI updated for selected file")
+            print("📱 UI updated for selected file: \(displayName)")
         }
     }
     
