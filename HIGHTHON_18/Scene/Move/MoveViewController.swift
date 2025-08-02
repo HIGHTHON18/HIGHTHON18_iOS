@@ -25,6 +25,7 @@ class MoveViewController: UIViewController {
     }
     private let plusImageView = UIImageView().then {
         $0.image = UIImage(named: "plus")?.withRenderingMode(.alwaysOriginal)
+        $0.isUserInteractionEnabled = true
     }
     private let rankImageView = UIImageView().then {
         $0.image = UIImage(named: "rank")?.withRenderingMode(.alwaysOriginal)
@@ -40,6 +41,7 @@ class MoveViewController: UIViewController {
        navigationItem.hidesBackButton = true
        addView()
        layout()
+       setupGestures()  // 제스처 설정 추가
     }
     
     func addView() {
@@ -101,4 +103,14 @@ class MoveViewController: UIViewController {
         }
     }
     
+    // 제스처 설정 함수 추가
+    private func setupGestures() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(plusImageViewTapped))
+        plusImageView.addGestureRecognizer(tapGesture)
+    }
+    
+    // plusImageView 탭 시 실행될 함수
+    @objc private func plusImageViewTapped() {
+        navigationController?.popViewController(animated: true)
+    }
 }
