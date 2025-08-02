@@ -41,7 +41,7 @@ class MoveViewController: UIViewController {
        navigationItem.hidesBackButton = true
        addView()
        layout()
-       setupGestures()  // 제스처 설정 추가
+       setupGestures()
     }
     
     func addView() {
@@ -76,7 +76,8 @@ class MoveViewController: UIViewController {
         }
         sentImageView.snp.makeConstraints {
             $0.top.equalTo(feedDetailLabel.snp.bottom).offset(62)
-            $0.centerY.equalToSuperview()
+            $0.centerX.equalToSuperview()
+            $0.width.height.equalTo(150)
         }
         tabBarBackView.snp.makeConstraints {
             $0.bottom.equalTo(view.safeAreaLayoutGuide)

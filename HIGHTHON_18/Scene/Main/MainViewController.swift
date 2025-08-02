@@ -15,7 +15,7 @@ class MainViewController: UIViewController {
     }
     private let upLoadLabel = UILabel().then {
         $0.text = "PDF를 업로드 해주세요"
-        $0.font = UIFont.systemFont(ofSize: 30, weight: .semibold)
+        $0.font = UIFont.systemFont(ofSize: 25, weight: .semibold)
         $0.textColor = .black
     }
     private let loadDetailLabel = UILabel().then {
@@ -116,21 +116,20 @@ class MainViewController: UIViewController {
         }
         upLoadLabel.snp.makeConstraints {
             $0.top.equalTo(view.safeAreaLayoutGuide).offset(110)
-            $0.leading.equalToSuperview().inset(57)
-            $0.trailing.equalToSuperview().inset(56)
+            $0.centerX.equalToSuperview()
         }
         loadDetailLabel.snp.makeConstraints {
             $0.top.equalTo(upLoadLabel.snp.bottom).offset(6)
             $0.centerX.equalToSuperview()
         }
         mainFileImageView.snp.makeConstraints {
-            $0.top.equalTo(278)
+            $0.top.equalTo(260)
             $0.centerX.equalToSuperview()
             $0.width.equalTo(247)
-            $0.height.equalTo(202)
+            $0.height.equalTo(220)
         }
         selectImageView.snp.makeConstraints {
-            $0.bottom.equalTo(endButton.snp.top).offset(-78)
+            $0.bottom.equalTo(endButton.snp.top).offset(-56)
             $0.centerX.equalToSuperview()
         }
         endButton.snp.makeConstraints {
