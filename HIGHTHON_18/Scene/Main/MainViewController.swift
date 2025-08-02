@@ -7,6 +7,7 @@ class MainViewController: UIViewController {
     private var accessToken: String?
     private var expirationTime: String?
     private var selectedFileURL: URL?
+    private var uploadedFileId: String? // 업로드된 파일 ID 저장
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
     }
@@ -15,7 +16,7 @@ class MainViewController: UIViewController {
     }
     private let upLoadLabel = UILabel().then {
         $0.text = "PDF를 업로드 해주세요"
-        $0.font = UIFont.systemFont(ofSize: 25, weight: .semibold)
+        $0.font = UIFont.systemFont(ofSize: 30, weight: .semibold)
         $0.textColor = .black
     }
     private let loadDetailLabel = UILabel().then {
@@ -66,6 +67,26 @@ class MainViewController: UIViewController {
         setupGestures()
         getTokenAPI()
         updateEndButtonState()
+        
+        // 이전에 업로드된 파일 ID 복원 (필요한 경우)
+        if let savedId = UserDefaults.standard.string(forKey: "lastUploadedFileId") {
+            uploadedFileId = savedId
+            print("📂 Restored saved file ID: \(savedId)")
+        }
+    }
+    
+    // MARK: - File ID Management
+    /// 현재 업로드된 파일 ID를 반환
+    func getCurrentUploadedFileId() -> String? {
+        return uploadedFileId
+    }
+    
+    /// 저장된 파일 ID를 클리어 (필요한 경우)
+    func clearUploadedFileId() {
+        uploadedFileId = nil
+        UserDefaults.standard.removeObject(forKey: "lastUploadedFileId")
+        UserDefaults.standard.synchronize()
+        print("🗑️ Uploaded file ID cleared")
     }
     
     @objc private func endButtonTapped() {
@@ -222,6 +243,7 @@ class MainViewController: UIViewController {
     }
     
     private func uploadPortfolioFile(fileURL: URL, accessToken: String) {
+        print("📤 Starting file upload...")
         showLoading(true)
         
         NetworkManager.shared.uploadPortfolio(fileURL: fileURL, accessToken: accessToken) { [weak self] result in
@@ -235,7 +257,16 @@ class MainViewController: UIViewController {
                     print("📄 File Name: \(uploadResponse.logicalName)")
                     print("🔗 URLs: \(uploadResponse.url)")
                     
-                    self?.showSuccessAndNavigate()
+                    // 업로드된 파일 ID 저장
+                    self?.uploadedFileId = uploadResponse.id
+                    print("💾 File ID saved: \(uploadResponse.id)")
+                    
+                    // UserDefaults에도 저장 (앱 재시작 후에도 유지하려면)
+                    UserDefaults.standard.set(uploadResponse.id, forKey: "lastUploadedFileId")
+                    UserDefaults.standard.synchronize()
+                    print("💾 File ID saved to UserDefaults")
+                    
+                    self?.showSuccessAndNavigate(uploadId: uploadResponse.id)
                     
                 case .failure(let error):
                     print("❌ Upload Error: \(error.localizedDescription)")
@@ -254,10 +285,16 @@ class MainViewController: UIViewController {
         }
     }
     
-    private func showSuccessAndNavigate() {
-        let alert = UIAlertController(title: "업로드 완료", message: "포트폴리오가 성공적으로 업로드되었습니다.", preferredStyle: .alert)
+    private func showSuccessAndNavigate(uploadId: String) {
+        let alert = UIAlertController(
+            title: "업로드 완료",
+            message: "포트폴리오가 성공적으로 업로드되었습니다.\nID: \(uploadId)",
+            preferredStyle: .alert
+        )
         alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
             let moveViewController = MoveViewController()
+            // MoveViewController에 업로드 ID 전달 (필요한 경우)
+            // moveViewController.uploadedFileId = uploadId
             self?.navigationController?.pushViewController(moveViewController, animated: true)
         })
         present(alert, animated: true)
