@@ -3,6 +3,9 @@ import Then
 import SnapKit
 
 class MainViewController: UIViewController {
+    private var accessToken: String?
+    private var refreshToken: String?
+    
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
     }
@@ -56,6 +59,7 @@ class MainViewController: UIViewController {
         addView()
         layout()
         setupGestures()
+        getTokenAPI()
     }
     
     @objc private func endButtonTapped() {
@@ -141,7 +145,7 @@ class MainViewController: UIViewController {
             $0.height.equalTo(88)
         }
     }
-
+    
     private func setupGestures() {
         let rankTapGesture = UITapGestureRecognizer(target: self, action: #selector(rankImageViewTapped))
         rankImageView.addGestureRecognizer(rankTapGesture)
@@ -149,14 +153,32 @@ class MainViewController: UIViewController {
         let logTapGesture = UITapGestureRecognizer(target: self, action: #selector(logImageViewTapped))
         logImageView.addGestureRecognizer(logTapGesture)
     }
-
+    
     @objc private func rankImageViewTapped() {
         let rankViewController = RankViewController()
         navigationController?.pushViewController(rankViewController, animated: true)
     }
-
+    
     @objc private func logImageViewTapped() {
         let recordViewController = RecordViewController()
         navigationController?.pushViewController(recordViewController, animated: true)
+    }
+    
+    private func getTokenAPI() {
+        NetworkManager.shared.getToken { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let tokenResponse):
+                    self?.accessToken = tokenResponse.accessToken
+                    self?.refreshToken = tokenResponse.refreshToken
+                    print("Tokens saved successfully")
+                    print("Access Token: \(tokenResponse.accessToken)")
+                    print("Refresh Token: \(tokenResponse.refreshToken)")
+                    
+                case .failure(let error):
+                    print("Token API Error: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 }
