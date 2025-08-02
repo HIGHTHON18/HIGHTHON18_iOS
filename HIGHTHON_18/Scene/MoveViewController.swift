@@ -61,6 +61,8 @@ class MoveViewController: UIViewController {
 //            $0.top.equalTo(view.safeAreaLayoutGuide)
             $0.top.equalTo(47)
             $0.centerX.equalToSuperview()
+            $0.width.equalTo(58)
+            $0.height.equalTo(43)
         }
         aiFeedLabel.snp.makeConstraints {
             $0.top.equalTo(daeImageView.snp.bottom).offset(67)
