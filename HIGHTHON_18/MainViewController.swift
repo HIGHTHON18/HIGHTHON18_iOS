@@ -32,12 +32,11 @@ class MainViewController: UIViewController {
        $0.layer.cornerRadius = 10
        $0.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
     }
-    private let tabBarImageView = UIImageView().then {
-        $0.image = UIImage(named: "tabBar")?.withRenderingMode(.alwaysOriginal)
-    }
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .backGround
         addView()
         layout()
     }
@@ -51,8 +50,7 @@ class MainViewController: UIViewController {
             mainFileImageView,
             loadDetailLabel,
             selectImageView,
-            endButton,
-            tabBarImageView
+            endButton
         ].forEach { view.addSubview($0) }
     }
     
@@ -94,9 +92,7 @@ class MainViewController: UIViewController {
             $0.width.equalTo(396)
             $0.height.equalTo(51)
         }
-        tabBarImageView.snp.makeConstraints {
-            $0.top.equalTo(<#T##other: any ConstraintRelatableTarget##any ConstraintRelatableTarget#>)
-        }
+     
     }
 }
 
