@@ -4,9 +4,8 @@ import SnapKit
 
 class MainViewController: UIViewController {
     private var accessToken: String?
-    private var refreshToken: String?
-    private var selectedFileURL: URL?  // 선택된 파일 URL 저장
-    
+    private var expirationTime: String?
+    private var selectedFileURL: URL?
     private let mainLogoImageView = UIImageView().then {
         $0.image = UIImage(named: "mainDa")?.withRenderingMode(.alwaysOriginal)
     }
@@ -28,7 +27,7 @@ class MainViewController: UIViewController {
     }
     private let selectImageView = UIImageView().then {
         $0.image = UIImage(named: "select")?.withRenderingMode(.alwaysOriginal)
-        $0.isUserInteractionEnabled = true  // 탭 가능하도록 설정
+        $0.isUserInteractionEnabled = true
     }
     private let endButton = UIButton().then {
         $0.setTitle("완료", for: .normal)
@@ -46,13 +45,16 @@ class MainViewController: UIViewController {
         $0.image = UIImage(named: "rank")?.withRenderingMode(.alwaysOriginal)
         $0.isUserInteractionEnabled = true
     }
-    
     private let logImageView = UIImageView().then {
         $0.image = UIImage(named: "log")?.withRenderingMode(.alwaysOriginal)
         $0.isUserInteractionEnabled = true
     }
     private let plusImageView = UIImageView().then {
         $0.image = UIImage(named: "plus")?.withRenderingMode(.alwaysOriginal)
+    }
+    private let loadingIndicator = UIActivityIndicatorView(style: .large).then {
+        $0.hidesWhenStopped = true
+        $0.color = .qwer
     }
     
     override func viewDidLoad() {
@@ -62,13 +64,27 @@ class MainViewController: UIViewController {
         layout()
         setupGestures()
         getTokenAPI()
+        updateEndButtonState()
     }
     
     @objc private func endButtonTapped() {
-        let moveViewController = MoveViewController()
-        navigationController?.pushViewController(moveViewController, animated: true)
+        guard let selectedFileURL = selectedFileURL else {
+            showAlert(title: "파일 선택 필요", message: "먼저 PDF 파일을 선택해주세요.")
+            return
+        }
+        
+        guard let accessToken = accessToken else {
+            // 토큰이 없을 때 다시 시도
+            showAlert(title: "인증 중...", message: "토큰을 다시 가져오는 중입니다.") { [weak self] in
+                self?.getTokenAPI()
+            }
+            return
+        }
+        
+        uploadPortfolioFile(fileURL: selectedFileURL, accessToken: accessToken)
     }
     
+    // 레이아웃 및 기타 메서드들은 동일...
     func addView() {
         [
             mainLogoImageView,
@@ -79,7 +95,8 @@ class MainViewController: UIViewController {
             selectImageView,
             endButton,
             tabBarBackView,
-            plusImageView
+            plusImageView,
+            loadingIndicator
         ].forEach { view.addSubview($0) }
         
         tabBarBackView.addSubview(rankImageView)
@@ -145,6 +162,9 @@ class MainViewController: UIViewController {
             $0.width.equalTo(89)
             $0.height.equalTo(88)
         }
+        loadingIndicator.snp.makeConstraints {
+            $0.center.equalToSuperview()
+        }
     }
     
     private func setupGestures() {
@@ -172,27 +192,92 @@ class MainViewController: UIViewController {
         presentDocumentPicker()
     }
     
-    // MARK: - API Methods
+    // MARK: - API Methods (수정된 부분)
     private func getTokenAPI() {
+        print("🔄 Attempting to get token...")
+        showLoading(true) // 토큰 가져오는 동안 로딩 표시
+        
         NetworkManager.shared.getToken { [weak self] result in
             DispatchQueue.main.async {
+                self?.showLoading(false)
+                
                 switch result {
                 case .success(let tokenResponse):
                     self?.accessToken = tokenResponse.accessToken
-                    self?.refreshToken = tokenResponse.refreshToken
-                    print("Tokens saved successfully")
-                    print("Access Token: \(tokenResponse.accessToken)")
-                    print("Refresh Token: \(tokenResponse.refreshToken)")
+                    print("✅ Token saved successfully: \(tokenResponse.accessToken.prefix(10))...")
+                    self?.updateEndButtonState() // 토큰 받은 후 버튼 상태 업데이트
                     
                 case .failure(let error):
-                    print("Token API Error: \(error.localizedDescription)")
-                    // 필요시 에러 처리 로직 추가
+                    print("❌ Token API Error: \(error.localizedDescription)")
+                    if case .apiError(let code, let message) = error {
+                        print("📋 Error Code: \(code)")
+                        print("💬 Error Message: \(message)")
+                    }
+                    
+                    // 네트워크 연결 문제일 수 있으니 재시도 옵션 제공
+                    self?.showRetryAlert(title: "토큰 오류",
+                                        message: "인증 토큰을 가져올 수 없습니다.\n네트워크 연결을 확인해주세요.") {
+                        self?.getTokenAPI()
+                    }
                 }
             }
         }
     }
     
-    // MARK: - File Selection Methods
+    private func uploadPortfolioFile(fileURL: URL, accessToken: String) {
+        showLoading(true)
+        
+        NetworkManager.shared.uploadPortfolio(fileURL: fileURL, accessToken: accessToken) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.showLoading(false)
+                
+                switch result {
+                case .success(let uploadResponse):
+                    print("✅ File uploaded successfully")
+                    print("🎯 Upload ID: \(uploadResponse.id)")
+                    print("📄 File Name: \(uploadResponse.logicalName)")
+                    print("🔗 URLs: \(uploadResponse.url)")
+                    
+                    self?.showSuccessAndNavigate()
+                    
+                case .failure(let error):
+                    print("❌ Upload Error: \(error.localizedDescription)")
+                    
+                    var errorMessage = "업로드 중 오류가 발생했습니다."
+                    
+                    if case .apiError(let code, let message) = error {
+                        print("📋 Upload Error Code: \(code)")
+                        print("💬 Upload Error Message: \(message)")
+                        errorMessage = message
+                    }
+                    
+                    self?.showAlert(title: "업로드 실패", message: errorMessage)
+                }
+            }
+        }
+    }
+    
+    private func showSuccessAndNavigate() {
+        let alert = UIAlertController(title: "업로드 완료", message: "포트폴리오가 성공적으로 업로드되었습니다.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak self] _ in
+            let moveViewController = MoveViewController()
+            self?.navigationController?.pushViewController(moveViewController, animated: true)
+        })
+        present(alert, animated: true)
+    }
+    
+    private func showLoading(_ show: Bool) {
+        if show {
+            loadingIndicator.startAnimating()
+            endButton.isEnabled = false
+            endButton.alpha = 0.6
+        } else {
+            loadingIndicator.stopAnimating()
+            updateEndButtonState() // 로딩 종료 후 버튼 상태 재평가
+        }
+    }
+    
+    // MARK: - File Selection Methods (수정된 부분)
     private func presentDocumentPicker() {
         let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf], asCopy: true)
         documentPicker.delegate = self
@@ -202,47 +287,98 @@ class MainViewController: UIViewController {
     }
     
     private func handleSelectedFile(_ url: URL) {
+        // 파일 접근 권한 확보
+        guard url.startAccessingSecurityScopedResource() else {
+            showAlert(title: "파일 접근 오류", message: "선택한 파일에 접근할 수 없습니다.")
+            return
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
         selectedFileURL = url
         
-        // 파일 정보 확인
         do {
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: url.path)
             if let fileSize = fileAttributes[.size] as? NSNumber {
                 let fileSizeInMB = fileSize.doubleValue / (1024 * 1024)
                 
-                print("Selected file: \(url.lastPathComponent)")
+                // 파일명을 안전하게 디코딩
+                let fileName = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+                print("Selected file: \(fileName)")
                 print("File size: \(String(format: "%.2f", fileSizeInMB)) MB")
                 
-                // 50MB 제한 확인
                 if fileSizeInMB > 50 {
                     showAlert(title: "파일 크기 초과", message: "50MB 이하의 파일만 업로드 가능합니다.")
                     selectedFileURL = nil
+                    updateEndButtonState()
                     return
                 }
                 
-                // UI 업데이트 (선택된 파일명 표시 등)
-                updateUIForSelectedFile(fileName: url.lastPathComponent)
+                updateUIForSelectedFile(fileName: fileName)
+                updateEndButtonState()
             }
         } catch {
             print("Error reading file attributes: \(error)")
             showAlert(title: "오류", message: "파일 정보를 읽을 수 없습니다.")
+            selectedFileURL = nil
+            updateEndButtonState()
         }
     }
     
     private func updateUIForSelectedFile(fileName: String) {
-        // 파일이 선택되었음을 사용자에게 알리는 UI 업데이트
-        // 예: 라벨 텍스트 변경, 버튼 활성화 등
         DispatchQueue.main.async { [weak self] in
-            // 여기서 UI 업데이트 로직 추가
             print("파일이 선택되었습니다: \(fileName)")
-            // 예시: self?.upLoadLabel.text = "선택됨: \(fileName)"
+            // 파일명이 너무 길면 축약
+            let displayName = fileName.count > 20 ? String(fileName.prefix(17)) + "..." : fileName
+            self?.upLoadLabel.text = "선택됨: \(displayName)"
+            self?.upLoadLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+            self?.loadDetailLabel.text = "업로드할 준비가 완료되었습니다."
         }
     }
     
-    private func showAlert(title: String, message: String) {
+    // 수정된 버튼 상태 업데이트 로직
+    private func updateEndButtonState() {
+        DispatchQueue.main.async { [weak self] in
+            let hasFile = self?.selectedFileURL != nil
+            let hasToken = self?.accessToken != nil
+            
+            print("🔍 Button state check - File: \(hasFile), Token: \(hasToken)")
+            
+            if hasFile && hasToken {
+                self?.endButton.backgroundColor = .qwer
+                self?.endButton.isEnabled = true
+                self?.endButton.alpha = 1.0
+                print("✅ Button enabled")
+            } else {
+                self?.endButton.backgroundColor = .lightGray
+                self?.endButton.isEnabled = false
+                self?.endButton.alpha = 0.6
+                print("❌ Button disabled - Missing: \(hasFile ? "" : "File ") \(hasToken ? "" : "Token")")
+            }
+        }
+    }
+    
+    // 일반 알림
+    private func showAlert(title: String, message: String, completion: (() -> Void)? = nil) {
         DispatchQueue.main.async { [weak self] in
             let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
+                completion?()
+            })
+            self?.present(alert, animated: true)
+        }
+    }
+    
+    // 재시도 알림
+    private func showRetryAlert(title: String, message: String, retryAction: @escaping () -> Void) {
+        DispatchQueue.main.async { [weak self] in
+            let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "재시도", style: .default) { _ in
+                retryAction()
+            })
+            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
             self?.present(alert, animated: true)
         }
     }
