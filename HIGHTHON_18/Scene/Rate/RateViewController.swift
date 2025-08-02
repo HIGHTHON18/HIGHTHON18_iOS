@@ -59,11 +59,15 @@ class RateViewController: UIViewController {
         cv.dataSource = self
         cv.register(EvaluationCell.self, forCellWithReuseIdentifier: EvaluationCell.identifier)
         cv.showsVerticalScrollIndicator = false
-        cv.isScrollEnabled = false // 4개 항목만 있으므로 스크롤 비활성화
+        cv.isScrollEnabled = true // 4개 항목만 있으므로 스크롤 비활성화
         return cv
     }()
     
-//    private let strong
+    private let strongLabel = UILabel().then {
+        $0.text = "강점 분석"
+        $0.font = UIFont.systemFont(ofSize: 24, weight: .semibold)
+        $0.textColor = UIColor(named: "customBlack")
+    }
     
     // MARK: - Data
     private var evaluationItems: [EvaluationDisplayItem] = []
@@ -261,7 +265,8 @@ class RateViewController: UIViewController {
             overallEvaluationLabel,
             overallEvaluationDetailLabel,
             scoreLabel,
-            collectionView
+            collectionView,
+            strongLabel
         ].forEach { view.addSubview($0) }
     }
     
@@ -301,7 +306,11 @@ class RateViewController: UIViewController {
         collectionView.snp.makeConstraints {
             $0.top.equalTo(scoreLabel.snp.bottom).offset(20)
             $0.leading.trailing.equalToSuperview()
-            $0.height.equalTo(296) // 2줄 * 140 + 간격 16 = 296
+            $0.height.equalTo(296)
+        }
+        strongLabel.snp.makeConstraints {
+            $0.top.equalTo(collectionView.snp.bottom).offset(36)
+            $0.leading.equalToSuperview().inset(16)
         }
     }
 }
