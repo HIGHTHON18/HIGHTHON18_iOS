@@ -103,7 +103,7 @@ class EvaluationCell: UICollectionViewCell {
 
         scoreLabel.snp.makeConstraints { make in
             make.top.equalToSuperview().inset(16)
-             make.trailing.equalToSuperview().inset(20)
+            make.trailing.equalToSuperview().inset(20)
         }
 
         descriptionLabel.snp.makeConstraints { make in
